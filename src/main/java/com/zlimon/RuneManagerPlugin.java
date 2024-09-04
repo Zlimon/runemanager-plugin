@@ -1,4 +1,4 @@
-package com.example;
+package com.zlimon;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -14,15 +14,15 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Example"
+	name = "RuneManager"
 )
-public class ExamplePlugin extends Plugin
+public class RuneManagerPlugin extends Plugin
 {
 	@Inject
 	private Client client;
 
 	@Inject
-	private ExampleConfig config;
+	private RuneManagerConfig config;
 
 	@Override
 	protected void startUp() throws Exception
@@ -46,8 +46,8 @@ public class ExamplePlugin extends Plugin
 	}
 
 	@Provides
-	ExampleConfig provideConfig(ConfigManager configManager)
+	RuneManagerConfig provideConfig(ConfigManager configManager)
 	{
-		return configManager.getConfig(ExampleConfig.class);
+		return configManager.getConfig(RuneManagerConfig.class);
 	}
 }

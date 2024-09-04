@@ -1,13 +1,13 @@
-package com.example;
+package com.zlimon;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class RuneManagerPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(RuneManagerPlugin.class);
 		RuneLite.main(args);
 	}
 }
