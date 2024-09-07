@@ -1,0 +1,22 @@
+package com.zlimon.marketplace.products;
+
+import java.util.ArrayList;
+
+import static com.zlimon.marketplace.MarketplaceConstants.*;
+
+public class EbsModelPlacement {
+	public String locationType = CURRENT_TILE_LOCATION_TYPE;
+	public String followType = NONE_FOLLOW_TYPE;
+	public ArrayList<EbsCondition> followConditions;
+	public String radiusType = OUTWARD_RADIUS_TYPE;
+	public Boolean inLineOfSight = false;
+	public Boolean avoidExistingSpawns = true;
+	public Boolean avoidPlayerLocation = true;
+	public boolean avoidInvalidOverlay = true;
+	public EbsRandomRange radiusRange = new EbsRandomRange(DEFAULT_MIN_RADIUS, DEFAULT_MAX_RADIUS);
+	public Integer followRadius;
+	public Integer radiusStepSize = 2;
+	public String rotationType;
+	public EbsRandomRange rotation;
+	public EbsTranslation translation;
+}
