@@ -9,10 +9,8 @@ import javax.swing.border.EmptyBorder;
 import com.zlimon.RuneManagerConfig;
 import com.zlimon.RuneManagerPlugin;
 import com.zlimon.fights.FightStateManager;
-import com.zlimon.marketplace.MarketplaceManager;
 import com.zlimon.twitch.TwitchApi;
 import com.zlimon.twitch.TwitchState;
-import com.zlimon.twitch.eventsub.TwitchEventSubClient;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
@@ -24,28 +22,23 @@ public class RuneManagerPanel extends PluginPanel
 	private final MaterialTabGroup tabGroup = new MaterialTabGroup(mainPanel);
 	private final MaterialTab connectivityTab;
 	private final MaterialTab combatTab;
-	private final MaterialTab marketplaceTab;
 
 	private final ConnectivityPanel connectivityPanel;
 	private final CombatPanel combatPanel;
-	private final MarketplacePanel marketplacePanel;
 
-	public RuneManagerPanel(RuneManagerPlugin plugin, TwitchApi twitchApi, TwitchEventSubClient twitchEventSubClient, TwitchState twitchState, FightStateManager fightStateManager, MarketplaceManager marketplaceManager, CanvasListener canvasListener, RuneManagerConfig config)
+	public RuneManagerPanel(RuneManagerPlugin plugin, TwitchApi twitchApi, TwitchState twitchState, FightStateManager fightStateManager, CanvasListener canvasListener, RuneManagerConfig config)
 	{
 		super(true);
 		setLayout(new BorderLayout());
 
 		combatPanel = new CombatPanel(fightStateManager);
-		connectivityPanel = new ConnectivityPanel(plugin, twitchApi, twitchEventSubClient, twitchState, canvasListener, config);
-		marketplacePanel = new MarketplacePanel(marketplaceManager);
+		connectivityPanel = new ConnectivityPanel(plugin, twitchApi, twitchState, canvasListener, config);
 
 		connectivityTab = new MaterialTab("Status", tabGroup, connectivityPanel);
-		marketplaceTab = new MaterialTab("Events", tabGroup, marketplacePanel);
 		combatTab = new MaterialTab("Combat", tabGroup, combatPanel);
 
 		tabGroup.setBorder(new EmptyBorder(5, 0, 0, 0));
 		tabGroup.addTab(connectivityTab);
-		tabGroup.addTab(marketplaceTab);
 		tabGroup.addTab(combatTab);
 
 		tabGroup.select(connectivityTab);
@@ -54,16 +47,10 @@ public class RuneManagerPanel extends PluginPanel
 		add(mainPanel, BorderLayout.CENTER);
 	}
 
-	public void onGameTick()
-	{
-		marketplacePanel.onGameTick();
-	}
-
 	public void rebuild()
 	{
 		connectivityPanel.rebuild();
 		combatPanel.rebuild();
-		marketplacePanel.rebuild();
 		repaint();
 		revalidate();
 	}
@@ -76,11 +63,6 @@ public class RuneManagerPanel extends PluginPanel
 	public ConnectivityPanel getConnectivityPanel()
 	{
 		return connectivityPanel;
-	}
-
-	public MarketplacePanel getMarketplacePanel()
-	{
-		return marketplacePanel;
 	}
 
 	public static void initializePanelButton(JPanel panel, JLabel label, String buttonTitle, ButtonCallback buttonCallback)

@@ -28,7 +28,6 @@ import com.google.inject.Provides;
 import com.zlimon.fights.FightStateManager;
 import com.zlimon.items.CollectionLogManager;
 import com.zlimon.items.ItemStateManager;
-import com.zlimon.marketplace.MarketplaceManager;
 import com.zlimon.minimap.MinimapManager;
 import com.zlimon.quests.QuestManager;
 import com.zlimon.raids.InvocationsManager;
@@ -38,8 +37,6 @@ import com.zlimon.twitch.TwitchApi;
 import com.zlimon.twitch.TwitchSegmentType;
 import com.zlimon.twitch.TwitchState;
 import com.zlimon.twitch.TwitchStateEntry;
-import com.zlimon.twitch.eventsub.TwitchEventSubClient;
-import com.zlimon.twitch.eventsub.TwitchEventSubListener;
 import com.zlimon.ui.CanvasListener;
 import com.zlimon.utilities.AccountType;
 import lombok.Getter;
@@ -87,8 +84,8 @@ import static com.zlimon.twitch.TwitchApi.TRIGGER_OAUTH_REFRESH_TOKEN_TIME_S;
  * Find events via: net.runelite.api.events
  */
 @PluginDescriptor(
-		name = "Twitch Live Loadout",
-		description = "Show Twitch viewers your collection log, bank, inventory, combat statistics, equipment, skills and more.",
+		name = "RuneManager",
+		description = "Sync your collection log, bank, inventory, combat statistics, equipment, skills and more.",
 		enabledByDefault = true
 )
 @Slf4j
@@ -153,15 +150,6 @@ public class RuneManagerPlugin extends Plugin
 	private TwitchApi twitchApi;
 
 	/**
-	 * Twitch EventSub client
-	 */
-	private TwitchEventSubListener twitchEventSubListener;
-	/**
-	 * Twitch EventSub client
-	 */
-	private TwitchEventSubClient twitchEventSubClient;
-
-	/**
 	 * Dedicated manager for all fight information.
 	 */
 	private FightStateManager fightStateManager;
@@ -180,12 +168,6 @@ public class RuneManagerPlugin extends Plugin
 	 * Dedicated manager for collection log information.
 	 */
 	private CollectionLogManager collectionLogManager;
-
-	/**
-	 * Dedicated manager for marketplace products information.
-	 */
-	@Getter
-	private MarketplaceManager marketplaceManager;
 
 	/**
 	 * Dedicated manager for minimap information.
@@ -242,8 +224,6 @@ public class RuneManagerPlugin extends Plugin
 		initializePanel();
 
 		// tasks to execute immediately on boot
-		updateMarketplaceStreamerProducts();
-		updateMarketplaceEbsProducts();
 		ensureValidTwitchOAuthToken();
 
 		// trigger some other updates that need to be triggered when booting up the plugin
@@ -277,9 +257,7 @@ public class RuneManagerPlugin extends Plugin
 	{
 		try {
 			twitchApi = new TwitchApi(this, client, config, chatMessageManager, httpClient, configManager);
-			twitchEventSubListener = new TwitchEventSubListener(this, twitchApi, gson);
-			twitchEventSubClient = new TwitchEventSubClient(this, config, twitchApi, gson, httpClient, twitchEventSubListener);
-			twitchState = new TwitchState(this, config, twitchEventSubClient, canvasListener, gson);
+			twitchState = new TwitchState(this, config, canvasListener, gson);
 		} catch (Exception exception) {
 			log.warn("An error occurred when initializing Twitch: ", exception);
 		}
@@ -292,7 +270,6 @@ public class RuneManagerPlugin extends Plugin
 			itemStateManager = new ItemStateManager(this, twitchState, client, itemManager, config);
 			skillStateManager = new SkillStateManager(twitchState, client);
 			collectionLogManager = new CollectionLogManager(this, twitchState, client);
-			marketplaceManager = new MarketplaceManager(this, twitchApi, twitchState, client, config, chatMessageManager, itemManager, overlayManager, gson, fightStateManager);
 			minimapManager = new MinimapManager(this, twitchState, client);
 			invocationsManager = new InvocationsManager(this, twitchState, client);
 			questManager = new QuestManager(this, twitchState, client);
@@ -305,7 +282,7 @@ public class RuneManagerPlugin extends Plugin
 	private void initializePanel()
 	{
 		try {
-			pluginPanel = new RuneManagerPanel(this, twitchApi, twitchEventSubClient, twitchState, fightStateManager, marketplaceManager, canvasListener, config);
+			pluginPanel = new RuneManagerPanel(this, twitchApi, twitchState, fightStateManager, canvasListener, config);
 			pluginPanel.rebuild();
 
 			final BufferedImage icon = ImageUtil.loadImageResource(getClass(), ICON_FILE);
@@ -372,7 +349,6 @@ public class RuneManagerPlugin extends Plugin
 		try {
 			// Only some managers require a shutdown as well
 			fightStateManager.shutDown();
-			marketplaceManager.shutDown();
 		} catch (Exception exception) {
 			log.warn("An error occurred when shutting down the managers: ", exception);
 		}
@@ -504,7 +480,7 @@ public class RuneManagerPlugin extends Plugin
 					twitchState.setRegionId(regionId);
 
 					// update state at the marketplace manager as well that should be accessible to products
-					marketplaceManager.setCurrentRegionId(regionId);
+//					marketplaceManager.setCurrentRegionId(regionId);
 				}
 
 				// update this information periodically because it is possible the plugin
@@ -525,106 +501,12 @@ public class RuneManagerPlugin extends Plugin
 	public void syncMiniMap()
 	{
 		try {
-			if (ENABLE_MINIMAP && config.marketplaceEnabled())
+			if (ENABLE_MINIMAP)
 			{
 				minimapManager.updateMinimap();
 			}
 		} catch (Exception exception) {
 			logSupport("Could not sync mini map: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to update the configuration segment cache
-	 * Note that this request is subject to rate limits by twitch of 20 times per minute.
-	 * We keep it at a safe rate to also support the fetching when someone is alting.
-	 * Documentation: https://dev.twitch.tv/docs/api/reference#get-extension-configuration-segment
-	 */
-	@Schedule(period = 10, unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void updateMarketplaceStreamerProducts()
-	{
-		try {
-			if (config.syncEnabled())
-			{
-				twitchApi.fetchAsyncConfigurationSegment(TwitchSegmentType.BROADCASTER);
-			}
-			if (config.marketplaceEnabled())
-			{
-				// streamer products are based on the broadcaster configuration segment
-				// making it dependant on the updating of the configuration segments
-				marketplaceManager.updateStreamerProducts();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not update the configuration segments due to the following error: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to update the EBS products configured in Twitch.
-	 */
-	@Schedule(period = (IN_DEVELOPMENT ? 1 : 60 * 5), unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void updateMarketplaceEbsProducts()
-	{
-		try {
-			if (config.marketplaceEnabled())
-			{
-				// update the EBS products
-				marketplaceManager.updateAsyncEbsProducts();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not update the EBS products due to the following error: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to update the channel point rewards configured in Twitch.
-	 */
-	@Schedule(period = (IN_DEVELOPMENT ? 5 : 30), unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void updateChannelPointRewards()
-	{
-		try {
-			if (config.marketplaceEnabled() && !config.twitchOAuthAccessToken().isEmpty())
-			{
-				marketplaceManager.updateAsyncChannelPointRewards();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not update the channel point rewards due to the following error: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to get new Twitch transactions
-	 */
-	@Schedule(period = 3, unit = ChronoUnit.SECONDS, asynchronous = false)
-	public void fetchMarketplaceTransactions()
-	{
-		try {
-			if (config.marketplaceEnabled())
-			{
-				// get new transactions from Twitch
-				marketplaceManager.fetchAsyncNewEbsTransactions();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not update the extension transactions due to the following error: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to manage activation and de-activation of products
-	 */
-	@Schedule(period = 1, unit = ChronoUnit.SECONDS, asynchronous = false)
-	public void applyMarketplaceTransactions()
-	{
-		try {
-			if (config.marketplaceEnabled())
-			{
-				runOnClientThread(() -> {
-					marketplaceManager.handleQueuedTransactions();
-					marketplaceManager.cleanExpiredProducts();
-				});
-			}
-		} catch (Exception exception) {
-			logSupport("Could not apply and clean the extension transactions: ", exception);
 		}
 	}
 
@@ -641,22 +523,6 @@ public class RuneManagerPlugin extends Plugin
 			}
 		} catch (Exception exception) {
 			logSupport("Could not check if in ToA: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to trigger automated end-to-end tests for the marketplace products
-	 */
-	@Schedule(period = 1, unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void testMarketplaceProducts()
-	{
-		try {
-			if (IN_DEVELOPMENT && config.testRandomEventsEnabled())
-			{
-				marketplaceManager.testNextEbsProduct();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not test marketplace products: ", exception);
 		}
 	}
 
@@ -678,25 +544,6 @@ public class RuneManagerPlugin extends Plugin
 			}
 		} catch (Exception exception) {
 			logSupport("Could not handle lobby game tick event: ", exception);
-		}
-	}
-
-	/**
-	 * Periodically check whether we are still connected to the Twitch EventSub API.
-	 */
-	@Schedule(period = 30, unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void checkTwitchEventSubConnection()
-	{
-		try {
-			if (twitchEventSubClient == null) {
-				return;
-			}
-
-			if (!twitchEventSubClient.isConnected()) {
-				twitchEventSubClient.reconnect(TwitchEventSubClient.DEFAULT_TWITCH_WEBSOCKET_URL);
-			}
-		} catch (Exception exception) {
-			log.warn("Could not check the Twitch Event Sub client connection: ", exception);
 		}
 	}
 
@@ -791,12 +638,12 @@ public class RuneManagerPlugin extends Plugin
 		try {
 			// alternative method to enable focus on window if somehow the other focus listener
 			// any menu click will enable focus, this includes walking and stuff
-			canvasListener.enableFocus();
-
-			if (config.marketplaceEnabled())
-			{
-				marketplaceManager.onMenuOptionClicked(event);
-			}
+//			canvasListener.enableFocus();
+//
+//			if (config.marketplaceEnabled())
+//			{
+//				marketplaceManager.onMenuOptionClicked(event);
+//			}
 		} catch (Exception exception) {
 			log.warn("Could not handle menu option clicked event: ", exception);
 		}
@@ -884,32 +731,12 @@ public class RuneManagerPlugin extends Plugin
 	public void onGameTick(GameTick tick)
 	{
 		try {
-			if (config.marketplaceEnabled())
-			{
-				marketplaceManager.onGameTick();
-			}
-
 			if (shouldTrackFightStatistics())
 			{
 				fightStateManager.onGameTick();
 			}
-
-			pluginPanel.onGameTick();
 		} catch (Exception exception) {
 			logSupport("Could not handle game tick event: ", exception);
-		}
-	}
-
-	@Subscribe
-	public void onClientTick(ClientTick tick)
-	{
-		try {
-			if (config.marketplaceEnabled())
-			{
-				marketplaceManager.onClientTick();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not handle client tick event: ", exception);
 		}
 	}
 
@@ -917,11 +744,6 @@ public class RuneManagerPlugin extends Plugin
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
 		try {
-			if (config.marketplaceEnabled())
-			{
-				marketplaceManager.onGameStateChanged(gameStateChanged);
-			}
-
 			// always update on game state change as well to instantly react to logout and login
 			twitchState.setAccountHash(client.getAccountHash());
 			twitchState.setAccountType(getAccountType());
@@ -946,22 +768,6 @@ public class RuneManagerPlugin extends Plugin
 			twitchState.setAccountHash(client.getAccountHash());
 		} catch (Exception exception) {
 			log.warn("Could not handle account hash event: ", exception);
-		}
-	}
-
-	/**
-	 * Handle player changes
-	 */
-	@Subscribe
-	public void onPlayerChanged(PlayerChanged playerChanged)
-	{
-		try {
-			if (config.marketplaceEnabled())
-			{
-				marketplaceManager.onPlayerChanged(playerChanged);
-			}
-		} catch (Exception exception) {
-			log.warn("Could not handle player changed event: ", exception);
 		}
 	}
 
@@ -996,7 +802,7 @@ public class RuneManagerPlugin extends Plugin
 			{
 				collectionLogManager.onVarbitChanged(event);
 			}
-			if (config.fightStatisticsEnabled() || config.marketplaceEnabled())
+			if (config.fightStatisticsEnabled())
 			{
 				// also handle when marketplace is enabled as some random events
 				// might have dependencies on updated attack styles
@@ -1037,19 +843,9 @@ public class RuneManagerPlugin extends Plugin
 				case "twitchVisibility":
 					twitchState.setTwitchVisibility(config.twitchVisibility());
 					break;
-				case "marketplaceEnabled":
-					pluginPanel.getMarketplacePanel().updateTexts();
-
-					// if it is being disabled immediately remove all active products and effects
-					// this is the most reliable to properly remove everything because ticks are based on this settting
-					if (!config.marketplaceEnabled())
-					{
-						marketplaceManager.disable();
-					}
-					break;
 				case "twitchOAuthAccessToken":
 				case "twitchOAuthRefreshToken":
-					twitchEventSubClient.reconnect(TwitchEventSubClient.DEFAULT_TWITCH_WEBSOCKET_URL);
+//					twitchEventSubClient.reconnect(TwitchEventSubClient.DEFAULT_TWITCH_WEBSOCKET_URL);
 					break;
 			}
 
@@ -1060,16 +856,6 @@ public class RuneManagerPlugin extends Plugin
 			canvasListener.enableFocus();
 		} catch (Exception exception) {
 			log.warn("Could not handle config change event: ", exception);
-		}
-	}
-
-	@Subscribe
-	public void onMenuOpened(MenuOpened event)
-	{
-		try {
-			marketplaceManager.onMenuOpened(event);
-		} catch (Exception exception) {
-			logSupport("Could not menu opened event: ", exception);
 		}
 	}
 
@@ -1113,28 +899,6 @@ public class RuneManagerPlugin extends Plugin
 			pluginPanel.getConnectivityPanel().rebuild();
 		} catch (Exception exception) {
 			logSupport("Could not update the connectivity panel due to the following error: ", exception);
-		}
-	}
-
-	/**
-	 * Periodically update the marketplace panel to show the latest status
-	 */
-	@Schedule(period = 3, unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void updateMarketplaceActiveProductsPanel()
-	{
-		try {
-			if (!hasValidPanels())
-			{
-				return;
-			}
-
-			// update periodically to update the expiry time and other texts
-			// NOTE: it is important to not rebuild the whole layout because that causes
-			// the scroll position in the panel to be reset
-			pluginPanel.getMarketplacePanel().rebuildProductPanels();
-			pluginPanel.getMarketplacePanel().updateTexts();
-		} catch (Exception exception) {
-			logSupport("Could not update the marketplace panel due to the following error: ", exception);
 		}
 	}
 
@@ -1389,10 +1153,13 @@ public class RuneManagerPlugin extends Plugin
 
 	public boolean canPerformDangerousEffects()
 	{
-		boolean isDisabledGeneral = !config.marketplaceEnabled();
-		boolean isDisabledDangerous = config.marketplaceProtectionEnabled() && isDangerousAccountType();
+		this.logSupport("Checking if dangerous effects can be performed...");
 
-		return !isDisabledGeneral && !isDisabledDangerous;
+		return true;
+//		boolean isDisabledGeneral = !config.marketplaceEnabled();
+//		boolean isDisabledDangerous = config.marketplaceProtectionEnabled() && isDangerousAccountType();
+//
+//		return !isDisabledGeneral && !isDisabledDangerous;
 	}
 
 	public boolean isLoggedIn()

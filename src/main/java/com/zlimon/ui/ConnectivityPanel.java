@@ -30,7 +30,6 @@ import com.zlimon.RuneManagerConfig;
 import com.zlimon.RuneManagerPlugin;
 import com.zlimon.twitch.TwitchApi;
 import com.zlimon.twitch.TwitchState;
-import com.zlimon.twitch.eventsub.TwitchEventSubClient;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.ImageUtil;
@@ -75,7 +74,6 @@ public class ConnectivityPanel extends JPanel
 
 	private final RuneManagerPlugin plugin;
 	private final TwitchApi twitchApi;
-	private final TwitchEventSubClient twitchEventSubClient;
 	private final TwitchState twitchState;
 	private final CanvasListener canvasListener;
 	private final RuneManagerConfig config;
@@ -87,13 +85,12 @@ public class ConnectivityPanel extends JPanel
 		WIKI_ICON = new ImageIcon(ImageUtil.loadImageResource(ConnectivityPanel.class, "/wiki_icon.png"));
 	}
 
-	public ConnectivityPanel(RuneManagerPlugin plugin, TwitchApi twitchApi, TwitchEventSubClient twitchEventSubClient, TwitchState twitchState, CanvasListener canvasListener, RuneManagerConfig config)
+	public ConnectivityPanel(RuneManagerPlugin plugin, TwitchApi twitchApi, TwitchState twitchState, CanvasListener canvasListener, RuneManagerConfig config)
 	{
 		super(new GridBagLayout());
 
 		this.plugin = plugin;
 		this.twitchApi = twitchApi;
-		this.twitchEventSubClient = twitchEventSubClient;
 		this.twitchState = twitchState;
 		this.canvasListener = canvasListener;
 		this.config = config;
@@ -171,10 +168,6 @@ public class ConnectivityPanel extends JPanel
 			syncingStatusColor = WARNING_TEXT_COLOR;
 		}
 
-		var twitchPubSubStatus = getTwitchPubSubStatus();
-		String twitchPubSubStatusText = twitchPubSubStatus.getLeft();
-		String twitchPubSubStatusColor = twitchPubSubStatus.getRight();
-
 		try {
 			final JsonObject decodedToken = twitchApi.getDecodedToken();
 			tokenExpiry = decodedToken.get("exp").getAsLong();
@@ -230,7 +223,6 @@ public class ConnectivityPanel extends JPanel
 
 		syncingStatusPanel.setText(getTextInColor(syncingStatusText, syncingStatusColor));
 		twitchStatusPanel.setText(getTextInColor(twitchStatusText, twitchStatusColor));
-		twitchEventSubStatusPanel.setText(getTextInColor(twitchPubSubStatusText, twitchPubSubStatusColor));
 		authPanel.setText(getTextInColor(authText, authColor));
 		rateLimitPanel.setText(getTextInColor(rateLimitText, rateLimitColor));
 		statePanel.setText(getTextInColor(stateText, stateColor));
@@ -313,25 +305,5 @@ public class ConnectivityPanel extends JPanel
 		container.add(arrowLabel, BorderLayout.EAST);
 
 		return container;
-	}
-
-	private Pair<String, String> getTwitchPubSubStatus()
-	{
-
-		if (config.twitchOAuthAccessToken().isEmpty() || config.twitchOAuthRefreshToken().isEmpty()) {
-			return Pair.of("Twitch Channel tokens are not setup. Will not connect. Follow our setup guide if you want to enable Twitch Channel Events, such as in-game effects upon channel point redeems, follow, subscriptions, etc.", DEFAULT_TEXT_COLOR);
-		}
-
-		if (twitchEventSubClient != null) {
-			if (twitchEventSubClient.isConnected()) {
-				return Pair.of("Connected to Twitch Channel Events API.", SUCCESS_TEXT_COLOR);
-			} else if (twitchEventSubClient.isConnecting()) {
-				return Pair.of("Connecting to Twitch Channel Events API...", WARNING_TEXT_COLOR);
-			}
-
-			return Pair.of("Disconnected from the Twitch Channel Events API.", ERROR_TEXT_COLOR);
-		}
-
-		return Pair.of("Could not initialise the Twitch Channel Events API. Try to setup the channel events tokens again.", ERROR_TEXT_COLOR);
 	}
 }

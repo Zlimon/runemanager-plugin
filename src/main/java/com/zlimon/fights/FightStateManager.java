@@ -1128,8 +1128,9 @@ public class FightStateManager
 		final CopyOnWriteArrayList<Actor> actors = new CopyOnWriteArrayList<>();
 		WorldView worldView = client.getTopLevelWorldView();
 
-		actors.addAll(worldView.npcs().stream().toList());
-		actors.addAll(worldView.players().stream().toList());
+// 		TODO: add back when the API is available
+//		actors.addAll(worldView.npcs().stream().toList());
+//		actors.addAll(worldView.players().stream().toList());
 
 		for (Actor actor : actors)
 		{

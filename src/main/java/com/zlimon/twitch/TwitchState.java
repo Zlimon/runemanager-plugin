@@ -3,9 +3,6 @@ package com.zlimon.twitch;
 import com.google.gson.*;
 import com.zlimon.RuneManagerConfig;
 import com.zlimon.RuneManagerPlugin;
-import com.zlimon.marketplace.MarketplaceManager;
-import com.zlimon.marketplace.products.ChannelPointReward;
-import com.zlimon.twitch.eventsub.TwitchEventSubClient;
 import com.zlimon.ui.CanvasListener;
 import com.zlimon.utilities.AccountType;
 import lombok.Getter;
@@ -43,7 +40,6 @@ public class TwitchState {
 
 	private final RuneManagerPlugin plugin;
 	private final RuneManagerConfig config;
-	private final TwitchEventSubClient twitchEventSubClient;
 	private final CanvasListener canvasListener;
 	private final Gson gson;
 
@@ -83,11 +79,10 @@ public class TwitchState {
 	private final static int WAS_IN_TOA_DEBOUNCE = 20 * 1000; // ms
 	private Instant lastWasInToA;
 
-	public TwitchState(RuneManagerPlugin plugin, RuneManagerConfig config, TwitchEventSubClient twitchEventSubClient, CanvasListener canvasListener, Gson gson)
+	public TwitchState(RuneManagerPlugin plugin, RuneManagerConfig config, CanvasListener canvasListener, Gson gson)
 	{
 		this.plugin = plugin;
 		this.config = config;
-		this.twitchEventSubClient = twitchEventSubClient;
 		this.canvasListener = canvasListener;
 		this.gson = gson;
 
@@ -367,11 +362,6 @@ public class TwitchState {
 		// configuration view when installing the extension
 		filteredState = addConnectionStatus(filteredState);
 
-		// always add marketplace settings because we want to show them even if the
-		// player is not yet logged in so that viewers can preview them
-		// the isLoggedIn property determines whether they are clickable
-		filteredState = addMarketplaceSettings(filteredState);
-
 		// remove any states that are disabled in the settings
 		filteredState = removeDisabledState(filteredState);
 
@@ -541,27 +531,6 @@ public class TwitchState {
 			state.addProperty(TwitchStateEntry.INVOCATIONS_RAID_LEVEL.getKey(), invocationsRaidLevel);
 		}
 
-		if (currentCyclicEntry == TwitchStateEntry.CHANNEL_POINT_REWARDS)
-		{
-			// add all channel point rewards in one go with data filtered from them
-			JsonArray simpleChannelPointRewards = new JsonArray();
-			CopyOnWriteArrayList<ChannelPointReward> channelPointRewards =  plugin.getMarketplaceManager().getChannelPointRewards();
-
-			for (ChannelPointReward channelPointReward : channelPointRewards)
-			{
-				JsonObject simpleChannelPointReward = new JsonObject();
-
-				// only add these three properties to conserve on data usage
-				simpleChannelPointReward.addProperty("id", channelPointReward.id);
-				simpleChannelPointReward.addProperty("title", channelPointReward.title);
-				simpleChannelPointReward.addProperty("cost", channelPointReward.cost);
-
-				simpleChannelPointRewards.add(simpleChannelPointReward);
-			}
-
-			state.add(TwitchStateEntry.CHANNEL_POINT_REWARDS.getKey(), simpleChannelPointRewards);
-		}
-
 		return state;
 	}
 
@@ -721,41 +690,6 @@ public class TwitchState {
 		return state;
 	}
 
-	private JsonObject addMarketplaceSettings(JsonObject state)
-	{
-
-		// also get whether the marketplace manager is active because this can temporarily disable
-		// donations via the playback buttons, it feel more natural to fetch it actively than to move some of that
-		// state also to this class. NOTE: check whether it is not null because this class is initialized first.
-		MarketplaceManager marketplaceManager = plugin.getMarketplaceManager();
-		boolean isEnabled = config.marketplaceEnabled();
-		boolean channelEventsActive = config.marketplaceChannelEventsEnabled() && twitchEventSubClient.isConnected() && !config.twitchOAuthAccessToken().isEmpty() && !config.twitchOAuthRefreshToken().isEmpty();
-		boolean isActive = false;
-		boolean isTestModeActive = false;
-		boolean isFreeModeActive = false;
-		boolean isChaosModeActive = false;
-		int sharedCooldownS = 0;
-
-		if (marketplaceManager != null)
-		{
-			isActive = marketplaceManager.isActive() && !marketplaceManager.isFetchingEbsTransactionsErrored();
-			isTestModeActive = marketplaceManager.isTestModeActive();
-			isFreeModeActive = marketplaceManager.isFreeModeActive();
-			isChaosModeActive = marketplaceManager.isChaosModeActive();
-			sharedCooldownS = marketplaceManager.getSharedCooldownS();
-		}
-
-		state.addProperty(TwitchStateEntry.MARKETPLACE_ENABLED.getKey(), isEnabled);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_ACTIVE.getKey(), isActive);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_CHANNEL_EVENTS_ACTIVE.getKey(), channelEventsActive);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_TEST_MODE_ACTIVE.getKey(), isTestModeActive);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_FREE_MODE_ACTIVE.getKey(), isFreeModeActive);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_CHAOS_MODE_ACTIVE.getKey(), isChaosModeActive);
-		state.addProperty(TwitchStateEntry.MARKETPLACE_PROTECTION_ENABLED.getKey(), config.marketplaceProtectionEnabled());
-		state.addProperty(TwitchStateEntry.SHARED_COOLDOWN.getKey(), sharedCooldownS);
-		return state;
-	}
-
 	private JsonObject removeDisabledState(JsonObject state)
 	{
 
@@ -819,11 +753,6 @@ public class TwitchState {
 			state.add(TwitchStateEntry.FIGHT_STATISTICS.getKey(), null);
 		}
 
-		if (!config.itemGoalsEnabled())
-		{
-			state.add(TwitchStateEntry.ITEM_GOALS.getKey(), null);
-		}
-
 		if (!config.skillsEnabled())
 		{
 			state.add(TwitchStateEntry.SKILL_EXPERIENCES.getKey(), null);
@@ -833,12 +762,6 @@ public class TwitchState {
 		if (!config.weightEnabled())
 		{
 			state.add(TwitchStateEntry.WEIGHT.getKey(), null);
-		}
-
-		if (!config.marketplaceEnabled())
-		{
-			state.addProperty(TwitchStateEntry.MARKETPLACE_ENABLED.getKey(), false);
-			state.add(TwitchStateEntry.CURRENT_PRODUCT_COOLDOWNS.getKey(), null);
 		}
 
 		if (!config.invocationsEnabled())
