@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Player;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
@@ -48,7 +49,7 @@ public class TwitchApi
 	public final static String DEFAULT_EXTENSION_CLIENT_ID = "cuhr4y87yiqd92qebs1mlrj3z5xfp6";
 	public final static String DEFAULT_EXTENSION_VERSION = "2.2.0";
 	public final static String DEFAULT_TWITCH_EBS_BASE_URL = "https://liveloadout.com";
-	public final static String DEFAULT_TWITCH_BASE_URL = "https://api.twitch.tv/helix/extensions";
+	public final static String DEFAULT_TWITCH_BASE_URL = "http://localhost/api";
 	private final static String RATE_LIMIT_REMAINING_HEADER = "Ratelimit-Remaining";
 
 	public final static int MIN_SYNC_DELAY = 0; // ms
@@ -71,7 +72,7 @@ public class TwitchApi
 	private final static int ERROR_CHAT_MESSAGE_THROTTLE = 15 * 60 * 1000; // in ms
 	private final static String USER_AGENT = "RuneLite";
 	private final static String TWITCH_CREATE_SUBSCRIPTION_URL = "https://api.twitch.tv/helix/eventsub/subscriptions";
-	public final static String TWITCH_VALIDATE_TOKEN_URL = "https://id.twitch.tv/oauth2/validate";
+	public final static String TWITCH_VALIDATE_TOKEN_URL = "http://localhost/api/me";
 	public final static String TWITCH_GET_CHANNEL_POINT_REWARDS_URL = "https://api.twitch.tv/helix/channel_points/custom_rewards";
 	public final static String DEFAULT_APP_CLIENT_ID = "qaljqu9cfow8biixuat6rbr303ocp2";
 
@@ -223,23 +224,18 @@ public class TwitchApi
 
 	private boolean sendAsyncPubSubState(JsonObject state)
 	{
+		// guard: only send the state when the client is logged in
+		if (!plugin.isLoggedIn(true))
+		{
+			return false;
+		}
+
 		try {
 			final JsonObject data = new JsonObject();
-			final JsonArray targets = new JsonArray();
-			final String channelId = getChannelId();
 
-			// guard: make sure the channel ID is valid
-			if (channelId == null)
-			{
-				return false;
-			}
-
-			targets.add(TwitchPubSubTargetType.BROADCAST.getTarget());
 			String compressedState = compressState(state);
 
 			data.addProperty("message", compressedState);
-			data.addProperty("broadcaster_id", channelId);
-			data.add("target", targets);
 
 			sendAsyncPubSubMessage(data, (Response response) -> {
 				verifyStateUpdateResponse("PubSub", response, compressedState);
@@ -258,112 +254,12 @@ public class TwitchApi
 
 	private void sendAsyncPubSubMessage(JsonObject data, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
 	{
-		final String url = DEFAULT_TWITCH_BASE_URL +"/pubsub";
+		final Player player = client.getLocalPlayer();
+		final String accountName = player.getName();
 
-		// Documentation: https://dev.twitch.tv/docs/extensions/reference/#send-extension-pubsub-message
-		performPostRequest(url, data, pubSubHttpClient, responseHandler, errorHandler);
-	}
+		final String url = DEFAULT_TWITCH_BASE_URL +"/accounts/"+ accountName +"/update";
 
-	public void fetchAsyncEbsProducts(HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
-	{
-		String url = DEFAULT_TWITCH_EBS_BASE_URL +"/api/marketplace-products";
-		final JsonObject data = new JsonObject();
-
-		if (RuneManagerPlugin.IN_DEVELOPMENT)
-		{
-			url = "http://localhost:3010/api/marketplace-products";
-		}
-
-		performPostRequest(url, data, ebsProductsHttpClient, responseHandler, errorHandler);
-	}
-
-	public void fetchAsyncEbsTransactions(String lastTransactionId, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
-	{
-		String url = DEFAULT_TWITCH_EBS_BASE_URL +"/api/marketplace-transactions";
-		final JsonObject data = new JsonObject();
-
-		if (RuneManagerPlugin.IN_DEVELOPMENT)
-		{
-			url = "http://localhost:3010/api/marketplace-transactions";
-		}
-
-		// only add last checked at when it is valid
-		if (lastTransactionId != null)
-		{
-			data.addProperty("lastTransactionId", lastTransactionId);
-		}
-
-		performPostRequest(url, data, ebsTransactionsHttpClient, responseHandler, errorHandler);
-	}
-
-	public void fetchAsyncConfigurationSegment(TwitchSegmentType segmentType) throws Exception
-	{
-		final String clientId = DEFAULT_EXTENSION_CLIENT_ID;
-		final String channelId = getChannelId();
-		final String baseUrl = DEFAULT_TWITCH_BASE_URL +"/configurations";
-
-		// guard: make sure the channel ID is valid
-		if (channelId == null)
-		{
-			return;
-		}
-
-		final String url = baseUrl +"?broadcaster_id="+ channelId +"&extension_id="+ clientId +"&segment="+ segmentType.getKey();
-
-		// documentation: https://dev.twitch.tv/docs/api/reference#get-extension-configuration-segment
-		performGetRequest(url, configurationSegmentHttpClient, (Response response) -> {
-
-			// there is a fair chance the configuration segment is empty when nothing is configured yet
-			// for this reason we silently ignore the error
-			try {
-				String rawSegmentResult = response.body().string();
-				JsonObject segmentResult = parseJson(rawSegmentResult);
-				String rawSegmentContent = segmentResult
-					.getAsJsonArray("data")
-					.get(0)
-					.getAsJsonObject()
-					.get("content")
-					.getAsString();
-				JsonObject segmentContent = parseJson(rawSegmentContent);
-
-				// cache the response if valid
-				configurationSegmentContents.put(segmentType, segmentContent);
-			} catch (Exception exception) {
-				// empty
-			}
-		}, (exception) -> {
-			// empty
-		});
-	}
-
-	public void sendChatMessage(String message)
-	{
-		String channelId = getChannelId();
-
-		final String url = DEFAULT_TWITCH_BASE_URL +"/chat?broadcaster_id="+ channelId;
-		final JsonObject data = new JsonObject();
-
-		// add the required data, reference: https://dev.twitch.tv/docs/api/reference/#send-extension-chat-message
-		data.addProperty("text", message);
-		data.addProperty("extension_id", DEFAULT_EXTENSION_CLIENT_ID);
-		data.addProperty("extension_version", DEFAULT_EXTENSION_VERSION);
-
-		performPostRequest(
-			url,
-			data,
-			chatMessageHttpClient,
-			(response) -> {
-				final int responseCode = response.code();
-
-				if (responseCode != 204)
-				{
-					plugin.logSupport("Could not send notification to the Twitch chat (message: "+ message +") due to an error with code: "+ responseCode);
-				}
-			},
-			(error) -> {
-				plugin.logSupport("Could not send notification to the Twitch chat due to an error: "+ message, error);
-			}
-		);
+		performPutRequest(url, data, pubSubHttpClient, responseHandler, errorHandler);
 	}
 
 	private void verifyStateUpdateResponse(String type, Response response, String compressedState) throws Exception
@@ -437,10 +333,6 @@ public class TwitchApi
 
 	public void ensureValidOAuthToken()
 	{
-		plugin.logSupport("The Twitch OAuth token is not yet implemented and will be removed in the future.");
-
-		return;
-
 //		final String accessToken = config.twitchOAuthAccessToken();
 //		final String refreshToken = config.twitchOAuthRefreshToken();
 //
@@ -449,49 +341,51 @@ public class TwitchApi
 //		{
 //			return;
 //		}
-//
-//		final Request validateRequest = new Request.Builder()
-//			.header("Authorization", "OAuth "+ accessToken)
-//			.header("User-Agent", USER_AGENT)
-//			.header("Content-Type", "application/json")
-//			.get()
-//			.url(TWITCH_VALIDATE_TOKEN_URL)
-//			.build();
-//
-//		performRequest(
-//			validateRequest,
-//			oAuthHttpClient,
-//			(response) -> {
-//				int responseCode = response.code();
-//
-//				// guard: skip when no valid body
-//				if (response.body() == null)
-//				{
-//					return;
-//				}
-//
-//				// guard: when unauthorized the token is already expired!
-//				if (responseCode == 401)
-//				{
-//					plugin.logSupport("Twitch OAuth access token is already expired. Refreshing...");
-//					refreshOAuthToken();
-//					return;
-//				}
-//
-//				JsonObject payload = parseJson(response.body().string());
+
+		final Request validateRequest = new Request.Builder()
+			.header("Authorization", "Bearer "+ getToken())
+			.header("User-Agent", USER_AGENT)
+			.header("Accept", "application/json")
+			.header("Content-Type", "application/json")
+			.get()
+			.url(TWITCH_VALIDATE_TOKEN_URL)
+			.build();
+
+		performRequest(
+			validateRequest,
+			oAuthHttpClient,
+			(response) -> {
+				int responseCode = response.code();
+
+				// guard: skip when no valid body
+				if (response.body() == null)
+				{
+					return;
+				}
+
+				// guard: when unauthorized the token is already expired!
+				if (responseCode == 401)
+				{
+					plugin.logSupport("Twitch OAuth access token is already expired. Refreshing...");
+					refreshOAuthToken();
+					return;
+				}
+
+				JsonObject payload = parseJson(response.body().string());
+
 //				Integer expiresInS = payload.get("expires_in").getAsInt();
 //				boolean needsRefresh = expiresInS == null || expiresInS < TRIGGER_OAUTH_REFRESH_TOKEN_TIME_S;
-//
+
 //				if (needsRefresh)
 //				{
 //					plugin.logSupport("Twitch OAuth access token almost expires in "+ expiresInS +" seconds. Refreshing...");
 //					refreshOAuthToken();
 //				}
-//			},
-//			(exception) -> {
-//				log.warn("Could not check whether the Twitch OAuth token is valid: ", exception);
-//			}
-//		);
+			},
+			(exception) -> {
+				log.warn("Could not check whether the Twitch OAuth token is valid: ", exception);
+			}
+		);
 	}
 
 	private void refreshOAuthToken()
@@ -564,20 +458,6 @@ public class TwitchApi
 //				log.warn("Could not refresh the Twitch OAuth token: ", exception);
 //			}
 //		);
-	}
-
-	@Nullable
-	public String getChannelId()
-	{
-
-		try {
-			JsonObject decodedToken = getDecodedToken();
-			return decodedToken.get("channel_id").getAsString();
-		} catch (Exception exception) {
-			// empty
-		}
-
-		return null;
 	}
 
 	public JsonObject getDecodedToken() throws Exception
@@ -668,11 +548,13 @@ public class TwitchApi
 	 */
 	public void performGetRequest(String url, OkHttpClient httpClient, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
 	{
+		plugin.logSupport("Performing GET request to: "+ url);
 		final String token = config.twitchToken();
 		final Request request = new Request.Builder()
 			.header("Client-ID", DEFAULT_EXTENSION_CLIENT_ID)
 			.header("Authorization", "Bearer "+ token)
 			.header("User-Agent", USER_AGENT)
+			.header("Accept", "application/json")
 			.header("Content-Type", "application/json")
 			.get()
 			.url(url)
@@ -684,16 +566,17 @@ public class TwitchApi
 	/**
 	 * Perform a generic POST request to the Twitch API.
 	 */
-	public void performPostRequest(String url, JsonObject data, OkHttpClient httpClient, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
+	public void performPutRequest(String url, JsonObject data, OkHttpClient httpClient, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
 	{
-		plugin.logSupport("Performing POST request to: "+ url);
+		plugin.logSupport("Performing PUT request to: "+ url);
 		final String token = config.twitchToken();
 		final Request request = new Request.Builder()
 			.header("Client-ID", DEFAULT_EXTENSION_CLIENT_ID)
 			.header("Authorization", "Bearer "+ token)
 			.header("User-Agent", USER_AGENT)
+			.header("Accept", "application/json")
 			.header("Content-Type", "application/json")
-			.post(RequestBody.create(JSON, data.toString()))
+			.put(RequestBody.create(JSON, data.toString()))
 			.url(url)
 			.build();
 
