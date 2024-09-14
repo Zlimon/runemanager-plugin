@@ -40,9 +40,6 @@ public interface RuneManagerConfig extends Config
 	public final static String TWITCH_OAUTH_ACCESS_TOKEN_KEY = "twitchOAuthAccessToken";
 	public final static String TWITCH_OAUTH_REFRESH_TOKEN_KEY = "twitchOAuthRefreshToken";
 
-	public final static String COLLECTION_LOG_CONFIG_KEY = "collection-log";
-	public final static String COLLECTION_LOG_OBTAINED_AMOUNT_CONFIG_KEY = "collection-log-obtained-amount";
-	public final static String COLLECTION_LOG_OBTAINABLE_AMOUNT_CONFIG_KEY = "collection-log-obtainable-amount";
 	public final static String LOOTING_BAG_ITEMS_CONFIG_KEY = "looting-bag-items";
 	public final static String LOOTING_BAG_PRICE_CONFIG_KEY = "looting-bag-price";
 	public final static String BANK_TABBED_ITEMS_CONFIG_KEY = "bank-items";
@@ -53,9 +50,6 @@ public interface RuneManagerConfig extends Config
 	public final static String SEASONAL_RELICS_CONFIG_KEY = "seasonal-relics";
 	public final static String SEASONAL_AREAS_CONFIG_KEY = "seasonal-areas";
 	public final static String[] PERSISTENT_STATE_CONFIG_KEYS = new String[]{
-			COLLECTION_LOG_CONFIG_KEY,
-			COLLECTION_LOG_OBTAINED_AMOUNT_CONFIG_KEY,
-			COLLECTION_LOG_OBTAINABLE_AMOUNT_CONFIG_KEY,
 			LOOTING_BAG_ITEMS_CONFIG_KEY,
 			LOOTING_BAG_PRICE_CONFIG_KEY,
 			BANK_TABBED_ITEMS_CONFIG_KEY,
@@ -249,42 +243,6 @@ public interface RuneManagerConfig extends Config
 	default boolean bankPriceEnabled()
 	{
 		return true;
-	}
-
-	@ConfigItem(
-			keyName = "collectionLogEnabled",
-			name = "Sync collection log",
-			description = "Synchronize the collection log quantities and kill counts.",
-			position = 12,
-			section = itemsSection
-	)
-	default boolean collectionLogEnabled()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-			keyName = "collectionLogFilter",
-			name = "Collection log filter (comma separated)",
-			description = "Only include entry titles that include one of the keywords separated with a comma (e.g. 'abyssal, raids')",
-			position = 14,
-			section = itemsSection
-	)
-	default String collectionLogFilter()
-	{
-		return "";
-	}
-
-	@ConfigItem(
-			keyName = "collectionLogSkipEmpty",
-			name = "Skip empty collection logs",
-			description = "Skip collection log pages where no items are logged yet.",
-			position = 16,
-			section = itemsSection
-	)
-	default boolean collectionLogSkipEmpty()
-	{
-		return false;
 	}
 
 	@ConfigSection(

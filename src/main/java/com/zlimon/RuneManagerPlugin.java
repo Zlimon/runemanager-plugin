@@ -29,7 +29,6 @@ import com.zlimon.fights.FightStateManager;
 import com.zlimon.items.ItemStateManager;
 import com.zlimon.minimap.MinimapManager;
 import com.zlimon.quests.QuestManager;
-import com.zlimon.raids.InvocationsManager;
 import com.zlimon.seasonals.SeasonalManager;
 import com.zlimon.skills.SkillStateManager;
 import com.zlimon.twitch.TwitchApi;
@@ -83,7 +82,7 @@ import static com.zlimon.twitch.TwitchApi.TRIGGER_OAUTH_REFRESH_TOKEN_TIME_S;
  */
 @PluginDescriptor(
 		name = "RuneManager",
-		description = "Sync your collection log, bank, inventory, combat statistics, equipment, skills and more.",
+		description = "Sync your bank, inventory, combat statistics, equipment, skills and more.",
 		enabledByDefault = true
 )
 @Slf4j
@@ -166,11 +165,6 @@ public class RuneManagerPlugin extends Plugin
 	 * Dedicated manager for minimap information.
 	 */
 	private MinimapManager minimapManager;
-
-	/**
-	 * Dedicated manager for ToA invocations raid information.
-	 */
-	private InvocationsManager invocationsManager;
 
 	/**
 	 * Dedicated manager for quests information.
@@ -263,7 +257,6 @@ public class RuneManagerPlugin extends Plugin
 			itemStateManager = new ItemStateManager(this, twitchState, client, itemManager, config);
 			skillStateManager = new SkillStateManager(twitchState, client);
 			minimapManager = new MinimapManager(this, twitchState, client);
-			invocationsManager = new InvocationsManager(this, twitchState, client);
 			questManager = new QuestManager(this, twitchState, client);
 			seasonalManager = new SeasonalManager(this, twitchState, client, gson);
 		} catch (Exception exception) {
@@ -499,22 +492,6 @@ public class RuneManagerPlugin extends Plugin
 			}
 		} catch (Exception exception) {
 			logSupport("Could not sync mini map: ", exception);
-		}
-	}
-
-	/**
-	 * Polling mechanism to check whether we are in ToA
-	 */
-	@Schedule(period = 5, unit = ChronoUnit.SECONDS, asynchronous = true)
-	public void checkIfInToA()
-	{
-		try {
-			if (config.invocationsEnabled() && config.autoDetectInToaRaidEnabled())
-			{
-				invocationsManager.checkIfInToA();
-			}
-		} catch (Exception exception) {
-			logSupport("Could not check if in ToA: ", exception);
 		}
 	}
 
@@ -767,11 +744,6 @@ public class RuneManagerPlugin extends Plugin
 			if (config.seasonalsEnabled() && isSeasonal())
 			{
 				seasonalManager.onScriptPostFired(scriptPostFired);
-			}
-
-			if (config.invocationsEnabled())
-			{
-				invocationsManager.onScriptPostFired(scriptPostFired);
 			}
 		} catch (Exception exception) {
 			logSupport("Could not handle script post fired event:", exception);

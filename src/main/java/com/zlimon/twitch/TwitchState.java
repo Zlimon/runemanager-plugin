@@ -66,8 +66,6 @@ public class TwitchState {
 	 * NOTE: keep a minimum of 20% reserved for combat fights.
 	 */
 	private final static int MAX_BANK_ITEMS_PER_SLICE = 250;
-	private final static int MAX_COLLECTION_LOG_ITEMS_PER_SLICE = 250;
-	private final static String COLLECTION_LOG_FILTER_SEPARATOR = ",";
 	private JsonObject cyclicState = new JsonObject();
 	@Getter
 	private TwitchStateEntry currentCyclicEntry = TwitchStateEntry.BANK_TABBED_ITEMS;
@@ -312,20 +310,6 @@ public class TwitchState {
 		plugin.setConfiguration(BANK_PRICE_CONFIG_KEY, totalPrice);
 	}
 
-	public void setCollectionLog(JsonObject collectionLog)
-	{
-		cyclicState.add(TwitchStateEntry.COLLECTION_LOG.getKey(), collectionLog);
-		plugin.setConfiguration(COLLECTION_LOG_CONFIG_KEY, collectionLog);
-	}
-
-	public void setCollectionLogAmounts(Integer obtainedAmount, Integer obtainableAmount)
-	{
-		cyclicState.addProperty(TwitchStateEntry.COLLECTION_LOG_OBTAINED_AMOUNT.getKey(), obtainedAmount);
-		cyclicState.addProperty(TwitchStateEntry.COLLECTION_LOG_OBTAINABLE_AMOUNT.getKey(), obtainableAmount);
-		plugin.setConfiguration(COLLECTION_LOG_OBTAINED_AMOUNT_CONFIG_KEY, obtainedAmount);
-		plugin.setConfiguration(COLLECTION_LOG_OBTAINABLE_AMOUNT_CONFIG_KEY, obtainableAmount);
-	}
-
 	public void setQuests(JsonArray quests)
 	{
 		cyclicState.add(TwitchStateEntry.QUESTS.getKey(), quests);
@@ -335,11 +319,6 @@ public class TwitchState {
 	public void setSeasonalItems(JsonArray seasonalItems)
 	{
 		currentState.add(TwitchStateEntry.SEASONAL_ITEMS.getKey(), seasonalItems);
-	}
-
-	public JsonObject getCollectionLog()
-	{
-		return cyclicState.getAsJsonObject(TwitchStateEntry.COLLECTION_LOG.getKey());
 	}
 
 	public JsonArray getTabbedBankItems()
@@ -467,94 +446,30 @@ public class TwitchState {
 		return state;
 	}
 
-	private boolean shouldIncludeInCollectionLog(String tabTitle, String categoryTitle, JsonArray items)
-	{
-		final String filter = config.collectionLogFilter().trim().toLowerCase();
-		final String[] filterPieces = filter.split(COLLECTION_LOG_FILTER_SEPARATOR);
-		final String trimmedTabTitle = tabTitle.trim().toLowerCase();
-		final String trimmedCategoryTitle = categoryTitle.trim().toLowerCase();
-
-		if (config.collectionLogSkipEmpty())
-		{
-			boolean foundItem = false;
-
-			// check all items whether something is obtained
-			for (JsonElement rawItem : items)
-			{
-				JsonArray item = rawItem.getAsJsonArray();
-				int itemQuantity = item.get(1).getAsInt();
-
-				if (itemQuantity > 0)
-				{
-					foundItem = true;
-				}
-			}
-
-			// guard: when none is found skip this log page
-			if (!foundItem)
-			{
-				return false;
-			}
-		}
-
-		if (filter.equals(""))
-		{
-			return true;
-		}
-
-		for (final String filterPiece : filterPieces)
-		{
-			final String trimmedFilterPiece = filterPiece.trim();
-
-			if (trimmedTabTitle.contains((trimmedFilterPiece)) || trimmedCategoryTitle.contains((trimmedFilterPiece)))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	public void nextCyclicState()
 	{
 
-		// after bank items are synced we move to the collection log
-		// we cannot sync the bank in one go either so we go through the slices
-		if (currentCyclicEntry == TwitchStateEntry.BANK_TABBED_ITEMS)
-		{
-			final int itemAmount = getBankItemAmount();
-			final int newSliceIndex = currentCyclicSliceIndex + MAX_BANK_ITEMS_PER_SLICE;
-			currentCyclicSliceIndex = newSliceIndex;
-
-			// if the current slices were already exceeding the current items
-			// we can move to syncing the collection log once again
-			if (!config.bankEnabled() || currentCyclicSliceIndex >= itemAmount)
-			{
-				currentCyclicEntry = TwitchStateEntry.COLLECTION_LOG;
-				currentCyclicSliceIndex = 0;
-			}
-		}
 
 		// after quests we go to invocations
-		else if (currentCyclicEntry == TwitchStateEntry.QUESTS)
-		{
-			currentCyclicEntry = TwitchStateEntry.INVOCATIONS;
-			currentCyclicSliceIndex = 0;
-		}
-
-		// after invocations we go back to the channel point rewards
-		else if (currentCyclicEntry == TwitchStateEntry.INVOCATIONS)
-		{
-			currentCyclicEntry = TwitchStateEntry.CHANNEL_POINT_REWARDS;
-			currentCyclicSliceIndex = 0;
-		}
-
-		// after the channel point rewards go to the bank
-		else if (currentCyclicEntry == TwitchStateEntry.CHANNEL_POINT_REWARDS)
-		{
-			currentCyclicEntry = TwitchStateEntry.BANK_TABBED_ITEMS;
-			currentCyclicSliceIndex = 0;
-		}
+//		if (currentCyclicEntry == TwitchStateEntry.QUESTS)
+//		{
+//			currentCyclicEntry = TwitchStateEntry.INVOCATIONS;
+//			currentCyclicSliceIndex = 0;
+//		}
+//
+//		// after invocations we go back to the channel point rewards
+//		else if (currentCyclicEntry == TwitchStateEntry.INVOCATIONS)
+//		{
+//			currentCyclicEntry = TwitchStateEntry.CHANNEL_POINT_REWARDS;
+//			currentCyclicSliceIndex = 0;
+//		}
+//
+//		// after the channel point rewards go to the bank
+//		else if (currentCyclicEntry == TwitchStateEntry.CHANNEL_POINT_REWARDS)
+//		{
+//			currentCyclicEntry = TwitchStateEntry.BANK_TABBED_ITEMS;
+//			currentCyclicSliceIndex = 0;
+//		}
 	}
 
 	private JsonObject verifyClientActivityStatus(JsonObject state)
@@ -649,11 +564,6 @@ public class TwitchState {
 		if (!config.bankPriceEnabled())
 		{
 			state.add(TwitchStateEntry.BANK_PRICE.getKey(), null);
-		}
-
-		if (!config.collectionLogEnabled())
-		{
-			state.add(TwitchStateEntry.COLLECTION_LOG.getKey(), null);
 		}
 
 		if (!config.fightStatisticsEnabled())
@@ -784,8 +694,7 @@ public class TwitchState {
 	private void reloadConfiguration()
 	{
 		// when another account logs in the cache should be updated to that account
-		// first we reset the data and after that check the cache
-		cyclicState.remove(TwitchStateEntry.COLLECTION_LOG.getKey());
+		// first we reset the data and after that check the cach
 		cyclicState.remove(TwitchStateEntry.BANK_TABBED_ITEMS.getKey());
 		cyclicState.remove(TwitchStateEntry.BANK_PRICE.getKey());
 		cyclicState.remove(TwitchStateEntry.QUESTS.getKey());
@@ -794,19 +703,6 @@ public class TwitchState {
 
 		currentState.add(TwitchStateEntry.LOOTING_BAG_ITEMS.getKey(), null);
 		currentState.addProperty(TwitchStateEntry.LOOTING_BAG_PRICE.getKey(), 0);
-
-		plugin.loadFromConfiguration(COLLECTION_LOG_CONFIG_KEY, (String rawCollectionLog) -> {
-			JsonObject parsedCollectionLog = new JsonParser().parse(rawCollectionLog).getAsJsonObject();
-			setCollectionLog(parsedCollectionLog);
-		});
-
-		plugin.loadFromConfiguration(COLLECTION_LOG_OBTAINED_AMOUNT_CONFIG_KEY, (String rawObtainedAmount) -> {
-			plugin.loadFromConfiguration(COLLECTION_LOG_OBTAINABLE_AMOUNT_CONFIG_KEY, (String rawObtainableAmount) -> {
-				Integer obtainedAmount = Integer.parseInt(rawObtainedAmount);
-				Integer obtainableAmount = Integer.parseInt(rawObtainableAmount);
-				setCollectionLogAmounts(obtainedAmount, obtainableAmount);
-			});
-		});
 
 		plugin.loadFromConfiguration(BANK_TABBED_ITEMS_CONFIG_KEY, (String rawItems) -> {
 			JsonArray parsedTabbedItems = new JsonParser().parse(rawItems).getAsJsonArray();
