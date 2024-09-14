@@ -257,7 +257,7 @@ public class RuneManagerPlugin extends Plugin
 	{
 		try {
 			twitchApi = new TwitchApi(this, client, config, chatMessageManager, httpClient, configManager);
-			twitchState = new TwitchState(this, config, canvasListener, gson);
+			twitchState = new TwitchState(this, config, canvasListener, gson, twitchApi);
 		} catch (Exception exception) {
 			log.warn("An error occurred when initializing Twitch: ", exception);
 		}

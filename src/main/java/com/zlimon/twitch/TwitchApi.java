@@ -1,11 +1,9 @@
 package com.zlimon.twitch;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zlimon.RuneManagerConfig;
 import com.zlimon.RuneManagerPlugin;
-import javax.annotation.Nullable;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +18,6 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import okhttp3.*;
 
-import static com.zlimon.RuneManagerConfig.*;
 import static net.runelite.http.api.RuneLiteAPI.JSON;
 
 import java.io.ByteArrayOutputStream;
@@ -158,17 +155,17 @@ public class TwitchApi
 		}
 
 		// schedule in the future, this also makes sure the HTTP requests are done on their own thread.
-		scheduledExecutor.schedule(new Runnable()
-		{
-			public void run()
-			{
-				try {
-					sendAsyncPubSubState(state);
-				} catch (Exception exception) {
-					plugin.logSupport("Could not send the pub sub state due to the following error: ", exception);
-				}
-			}
-		}, delay, TimeUnit.MILLISECONDS);
+//		scheduledExecutor.schedule(new Runnable()
+//		{
+//			public void run()
+//			{
+//				try {
+//					sendAsyncPubSubState(state);
+//				} catch (Exception exception) {
+//					plugin.logSupport("Could not send the pub sub state due to the following error: ", exception);
+//				}
+//			}
+//		}, delay, TimeUnit.MILLISECONDS);
 
 		lastScheduleStateTime = Instant.now();
 	}
@@ -220,6 +217,34 @@ public class TwitchApi
 	public void clearScheduledBroadcasterStates()
 	{
 		scheduledExecutor.getQueue().clear();
+	}
+
+	public void sendAsyncRequest(String endpoint, JsonObject payload)
+	{
+		if (!plugin.isLoggedIn(true))
+		{
+			return;
+		}
+
+		try {
+			performAsyncRequest(endpoint, payload, (Response response) -> {
+				verifyStateUpdateResponse("Payload", response, payload.toString());
+			}, (exception) -> {
+				plugin.logSupport("Could not send payload due to the following error: ", exception);
+			});
+		} catch (Exception exception) {
+			plugin.logSupport("Could not send payload due to the following error: ", exception);
+		}
+	}
+
+	private void performAsyncRequest(String endpoint, JsonObject data, HttpResponseHandler responseHandler, HttpErrorHandler errorHandler)
+	{
+		final Player player = client.getLocalPlayer();
+		final String accountName = player.getName();
+
+		final String url = DEFAULT_TWITCH_BASE_URL +"/accounts/"+ accountName + endpoint;
+
+		performPutRequest(url, data, pubSubHttpClient, responseHandler, errorHandler);
 	}
 
 	private boolean sendAsyncPubSubState(JsonObject state)

@@ -42,6 +42,7 @@ public class TwitchState {
 	private final RuneManagerConfig config;
 	private final CanvasListener canvasListener;
 	private final Gson gson;
+	private final TwitchApi twitchApi;
 
 	/**
 	 * Enable this if you want to test the state with all its limits
@@ -79,14 +80,15 @@ public class TwitchState {
 	private final static int WAS_IN_TOA_DEBOUNCE = 20 * 1000; // ms
 	private Instant lastWasInToA;
 
-	public TwitchState(RuneManagerPlugin plugin, RuneManagerConfig config, CanvasListener canvasListener, Gson gson)
+	public TwitchState(RuneManagerPlugin plugin, RuneManagerConfig config, CanvasListener canvasListener, Gson gson, TwitchApi twitchApi)
 	{
 		this.plugin = plugin;
 		this.config = config;
 		this.canvasListener = canvasListener;
 		this.gson = gson;
+        this.twitchApi = twitchApi;
 
-		// initialize the states that are not directly synced with events
+        // initialize the states that are not directly synced with events
 		setOverlayTopPosition(config.overlayTopPosition());
 		setVirtualLevelsEnabled(config.virtualLevelsEnabled());
 		setTwitchTheme(config.twitchTheme());
@@ -188,8 +190,11 @@ public class TwitchState {
 
 	public void setEquipmentItems(Item[] items, long totalPrice)
 	{
-		setItems(TwitchStateEntry.EQUIPMENT_ITEMS.getKey(), items);
-		setItemsPrice(TwitchStateEntry.EQUIPMENT_PRICE.getKey(), totalPrice);
+		final JsonObject payload = new JsonObject();
+
+		payload.add("equipment", convertToJson(items));
+
+		twitchApi.sendAsyncRequest("/equipment/update", payload);
 	}
 
 	public void setLootingBagItems(Item[] items, long totalPrice)
