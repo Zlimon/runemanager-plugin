@@ -26,7 +26,6 @@ package com.zlimon;
 
 import com.google.inject.Provides;
 import com.zlimon.fights.FightStateManager;
-import com.zlimon.items.CollectionLogManager;
 import com.zlimon.items.ItemStateManager;
 import com.zlimon.minimap.MinimapManager;
 import com.zlimon.quests.QuestManager;
@@ -34,7 +33,6 @@ import com.zlimon.raids.InvocationsManager;
 import com.zlimon.seasonals.SeasonalManager;
 import com.zlimon.skills.SkillStateManager;
 import com.zlimon.twitch.TwitchApi;
-import com.zlimon.twitch.TwitchSegmentType;
 import com.zlimon.twitch.TwitchState;
 import com.zlimon.twitch.TwitchStateEntry;
 import com.zlimon.ui.CanvasListener;
@@ -165,11 +163,6 @@ public class RuneManagerPlugin extends Plugin
 	private SkillStateManager skillStateManager;
 
 	/**
-	 * Dedicated manager for collection log information.
-	 */
-	private CollectionLogManager collectionLogManager;
-
-	/**
 	 * Dedicated manager for minimap information.
 	 */
 	private MinimapManager minimapManager;
@@ -269,7 +262,6 @@ public class RuneManagerPlugin extends Plugin
 			fightStateManager = new FightStateManager(this, config, client);
 			itemStateManager = new ItemStateManager(this, twitchState, client, itemManager, config);
 			skillStateManager = new SkillStateManager(twitchState, client);
-			collectionLogManager = new CollectionLogManager(this, twitchState, client);
 			minimapManager = new MinimapManager(this, twitchState, client);
 			invocationsManager = new InvocationsManager(this, twitchState, client);
 			questManager = new QuestManager(this, twitchState, client);
@@ -605,10 +597,7 @@ public class RuneManagerPlugin extends Plugin
 	public void onNpcLootReceived(NpcLootReceived event)
 	{
 		try {
-			if (config.collectionLogEnabled())
-			{
-				collectionLogManager.onNpcLootReceived(event);
-			}
+			//
 		} catch (Exception exception) {
 			log.warn("Could not handle on NPC loot received event: ", exception);
 		}
@@ -775,11 +764,6 @@ public class RuneManagerPlugin extends Plugin
 	public void onScriptPostFired(ScriptPostFired scriptPostFired)
 	{
 		try {
-			if (config.collectionLogEnabled())
-			{
-				collectionLogManager.onScriptPostFired(scriptPostFired);
-			}
-
 			if (config.seasonalsEnabled() && isSeasonal())
 			{
 				seasonalManager.onScriptPostFired(scriptPostFired);
@@ -798,10 +782,6 @@ public class RuneManagerPlugin extends Plugin
 	public void onVarbitChanged(VarbitChanged event)
 	{
 		try {
-			if (config.collectionLogEnabled())
-			{
-				collectionLogManager.onVarbitChanged(event);
-			}
 			if (config.fightStatisticsEnabled())
 			{
 				// also handle when marketplace is enabled as some random events
