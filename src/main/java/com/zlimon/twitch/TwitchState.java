@@ -300,8 +300,11 @@ public class TwitchState {
 
 	public void setBankItems(JsonArray tabbedBankItems)
 	{
-		cyclicState.add(TwitchStateEntry.BANK_TABBED_ITEMS.getKey(), tabbedBankItems);
-		plugin.setConfiguration(BANK_TABBED_ITEMS_CONFIG_KEY, tabbedBankItems);
+		final JsonObject payload = new JsonObject();
+
+		payload.add("bank", tabbedBankItems);
+
+		twitchApi.sendAsyncRequest("/bank/update", payload);
 	}
 
 	public void setBankItemsPrice(long totalPrice)
