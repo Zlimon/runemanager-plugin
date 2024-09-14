@@ -16,7 +16,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.zlimon.RuneManagerConfig.*;
-import static com.zlimon.items.CollectionLogManager.ITEMS_KEY_NAME;
 
 /**
  * In-memory state of all the data that is synced
@@ -441,87 +440,6 @@ public class TwitchState {
 			return state;
 		}
 
-		if (currentCyclicEntry == TwitchStateEntry.COLLECTION_LOG)
-		{
-			final JsonObject collectionLog = getCollectionLog();
-			final JsonObject slicedCollectionLog = new JsonObject();
-			Integer collectionLogObtainedAmount = null;
-			Integer collectionLogObtainableAmount = null;
-			AtomicInteger skippedItemAmount = new AtomicInteger();
-			AtomicInteger includedItemAmount = new AtomicInteger();
-			String collectionLogKey = TwitchStateEntry.COLLECTION_LOG.getKey();
-			String obtainedAmountKey = TwitchStateEntry.COLLECTION_LOG_OBTAINED_AMOUNT.getKey();
-			String obtainableAmountKey = TwitchStateEntry.COLLECTION_LOG_OBTAINABLE_AMOUNT.getKey();
-
-			if (collectionLog == null)
-			{
-				return state;
-			}
-
-			if (cyclicState.has(obtainedAmountKey) && cyclicState.has(obtainableAmountKey))
-			{
-				collectionLogObtainedAmount = cyclicState.get(obtainedAmountKey).getAsInt();
-				collectionLogObtainableAmount = cyclicState.get(obtainableAmountKey).getAsInt();
-			}
-
-			collectionLog.keySet().forEach(tabTitle ->
-			{
-				JsonObject categories = collectionLog.getAsJsonObject(tabTitle);
-
-				categories.keySet().forEach(categoryTitle ->
-				{
-					JsonObject category = categories.getAsJsonObject(categoryTitle);
-					JsonArray items = category.getAsJsonArray(ITEMS_KEY_NAME);
-
-					if (items == null)
-					{
-						return;
-					}
-
-					// guard: skip any categories that should not be included because of the filter
-					if (!shouldIncludeInCollectionLog(tabTitle, categoryTitle, items))
-					{
-						return;
-					}
-
-					int itemAmount = items.size();
-
-					// guard: check if we already passed the amount of items that were included
-					// in the last slice that is synced to the viewers
-					if (skippedItemAmount.get() < currentCyclicSliceIndex)
-					{
-						skippedItemAmount.addAndGet(itemAmount);
-						return;
-					}
-
-					// guard: check if we exceeded the maximum amount of items
-					// TODO: check if overflow in items might cause the max payload to exceed.
-					// this can for example happen with large categories, perhaps wise to set the
-					// max log items per slice to a fairly safe maximum so this cannot happen?
-					if (includedItemAmount.get() > MAX_COLLECTION_LOG_ITEMS_PER_SLICE)
-					{
-						return;
-					}
-
-					// now we can include this category
-					includedItemAmount.addAndGet(itemAmount);
-
-					// make sure the tab exists
-					if (!slicedCollectionLog.has(tabTitle))
-					{
-						slicedCollectionLog.add(tabTitle, new JsonObject());
-					}
-
-					JsonObject tabLog = slicedCollectionLog.getAsJsonObject(tabTitle);
-					tabLog.add(categoryTitle, category);
-				});
-			});
-
-			state.add(collectionLogKey, slicedCollectionLog);
-			state.addProperty(obtainedAmountKey, collectionLogObtainedAmount);
-			state.addProperty(obtainableAmountKey, collectionLogObtainableAmount);
-		}
-
 		if (currentCyclicEntry == TwitchStateEntry.QUESTS)
 		{
 			// add all the quests in one go
@@ -613,24 +531,6 @@ public class TwitchState {
 			if (!config.bankEnabled() || currentCyclicSliceIndex >= itemAmount)
 			{
 				currentCyclicEntry = TwitchStateEntry.COLLECTION_LOG;
-				currentCyclicSliceIndex = 0;
-			}
-		}
-
-		// the collection log is a bit more complex as we cannot sync 1351+ items
-		// in one go, for this reason we move across the object category by category
-		// after this we go to the quests
-		else if (currentCyclicEntry == TwitchStateEntry.COLLECTION_LOG)
-		{
-			final int itemAmount = getCollectionLogItemAmount();
-			final int newSliceIndex = currentCyclicSliceIndex + MAX_COLLECTION_LOG_ITEMS_PER_SLICE;
-			currentCyclicSliceIndex = newSliceIndex;
-
-			// if the current slices were already exceeding the current items
-			// we can move to syncing the bank once again
-			if (!config.collectionLogEnabled() || currentCyclicSliceIndex >= itemAmount)
-			{
-				currentCyclicEntry = TwitchStateEntry.QUESTS;
 				currentCyclicSliceIndex = 0;
 			}
 		}
@@ -856,43 +756,6 @@ public class TwitchState {
 
 		JsonArray json = gson.toJsonTree(copiedArray).getAsJsonArray();
 		return json;
-	}
-
-	private int getCollectionLogItemAmount()
-	{
-		final JsonObject collectionLog = getCollectionLog();
-		AtomicInteger amount = new AtomicInteger();
-
-		if (collectionLog == null)
-		{
-			return amount.get();
-		}
-
-		collectionLog.keySet().forEach(tabTitle ->
-		{
-			JsonObject categories = collectionLog.getAsJsonObject(tabTitle);
-
-			categories.keySet().forEach(categoryTitle ->
-			{
-				JsonObject category = categories.getAsJsonObject(categoryTitle);
-				JsonArray items = category.getAsJsonArray(ITEMS_KEY_NAME);
-
-				if (items == null)
-				{
-					return;
-				}
-
-				// guard: skip any categories that should not be included because of the filter
-				if (!shouldIncludeInCollectionLog(tabTitle, categoryTitle, items))
-				{
-					return;
-				}
-
-				amount.addAndGet(items.size());
-			});
-		});
-
-		return amount.get();
 	}
 
 	private int getBankItemAmount()
