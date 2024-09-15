@@ -181,8 +181,11 @@ public class TwitchState {
 
 	public void setInventoryItems(Item[] items, long totalPrice)
 	{
-		setItems(TwitchStateEntry.INVENTORY_ITEMS.getKey(), items);
-		setItemsPrice(TwitchStateEntry.INVENTORY_PRICE.getKey(), totalPrice);
+		final JsonObject payload = new JsonObject();
+
+		payload.add("inventory", convertToJson(items));
+
+		twitchApi.sendAsyncRequest("/inventory/update", payload);
 	}
 
 	public void setEquipmentItems(Item[] items, long totalPrice)
