@@ -312,8 +312,11 @@ public class TwitchState {
 
 	public void setQuests(JsonArray quests)
 	{
-		cyclicState.add(TwitchStateEntry.QUESTS.getKey(), quests);
-		plugin.setConfiguration(QUESTS_CONFIG_KEY, quests);
+		final JsonObject payload = new JsonObject();
+
+		payload.add("quests", quests);
+
+		twitchApi.sendAsyncRequest("/quests/update", payload);
 	}
 
 	public void setSeasonalItems(JsonArray seasonalItems)
