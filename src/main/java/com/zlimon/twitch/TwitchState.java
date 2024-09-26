@@ -199,10 +199,11 @@ public class TwitchState {
 
 	public void setLootingBagItems(Item[] items, long totalPrice)
 	{
-		setItems(TwitchStateEntry.LOOTING_BAG_ITEMS.getKey(), items);
-		setItemsPrice(TwitchStateEntry.LOOTING_BAG_PRICE.getKey(), totalPrice);
-		plugin.setConfiguration(LOOTING_BAG_ITEMS_CONFIG_KEY, convertToJson(items));
-		plugin.setConfiguration(LOOTING_BAG_PRICE_CONFIG_KEY, totalPrice);
+		final JsonObject payload = new JsonObject();
+
+		payload.add("looting_bag", convertToJson(items));
+
+		twitchApi.sendAsyncRequest("/looting-bag/update", payload);
 	}
 
 	private void setItems(String itemsKey, Item[] items)
