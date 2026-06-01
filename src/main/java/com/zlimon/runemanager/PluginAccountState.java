@@ -1,0 +1,81 @@
+package com.zlimon.runemanager;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.Player;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.eventbus.Subscribe;
+
+/**
+ * Tracks the OSRS account behind the locally logged-in player.
+ *
+ * The values are captured from the {@link Client} on the LOGGED_IN game state, since
+ * {@code accountHash} and the local player are only meaningful after login. Stored as
+ * Strings to match the headers the server reads (X-Account-Hash, X-Account-Username).
+ *
+ * Cleared on LOGIN_SCREEN / HOPPING / CONNECTION_LOST so push services know to back off.
+ */
+@Slf4j
+@Singleton
+public class PluginAccountState
+{
+	@Inject
+	private Client client;
+
+	private volatile String accountHash;
+	private volatile String username;
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		GameState state = event.getGameState();
+
+		if (state == GameState.LOGGED_IN)
+		{
+			refreshFromClient();
+		}
+		else if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING || state == GameState.CONNECTION_LOST)
+		{
+			clear();
+		}
+	}
+
+	public boolean isReady()
+	{
+		return accountHash != null && username != null;
+	}
+
+	public String accountHash()
+	{
+		return accountHash;
+	}
+
+	public String username()
+	{
+		return username;
+	}
+
+	private void refreshFromClient()
+	{
+		long hash = client.getAccountHash();
+		Player player = client.getLocalPlayer();
+
+		if (hash == -1L || player == null || player.getName() == null)
+		{
+			return;
+		}
+
+		this.accountHash = String.valueOf(hash);
+		this.username = player.getName();
+		log.debug("RuneManager: captured account hash={} username={}", accountHash, username);
+	}
+
+	private void clear()
+	{
+		this.accountHash = null;
+		this.username = null;
+	}
+}
