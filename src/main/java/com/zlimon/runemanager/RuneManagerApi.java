@@ -23,7 +23,13 @@ import okhttp3.Response;
  * fires the request on OkHttp's thread pool. Per the AGENTS.md guidelines no blocking
  * IO happens on the client thread.
  *
- * Push services hand off here so they don't have to repeat the auth wiring.
+ * Two variants:
+ * <ul>
+ *   <li>{@link #put(String, Object)} — for OSRS-account-scoped data; requires the
+ *       account state to be ready and sends X-Account-Hash + X-Account-Username.</li>
+ *   <li>{@link #putUserScoped(String, Object)} — for plain user-scoped data (e.g.
+ *       resource pack preference); only needs the API token.</li>
+ * </ul>
  */
 @Slf4j
 @Singleton
@@ -47,11 +53,8 @@ public class RuneManagerApi
 	private ConfigManager configManager;
 
 	/**
-	 * Fire-and-forget PUT. Skipped silently if the plugin isn't ready
-	 * (not logged in, no token, or invalid base URL).
-	 *
-	 * @param path absolute path on the API (e.g. "/api/plugin/inventory")
-	 * @param body any Object — Gson serialises it
+	 * Fire-and-forget PUT for OSRS-account-scoped data. Skipped silently if
+	 * the plugin isn't ready (no token, no account state, or invalid base URL).
 	 */
 	public void put(String path, Object body)
 	{
@@ -61,6 +64,20 @@ public class RuneManagerApi
 			return;
 		}
 
+		send(path, body, true);
+	}
+
+	/**
+	 * Fire-and-forget PUT for user-scoped data (no OSRS account context needed).
+	 * Only requires an API token to be set.
+	 */
+	public void putUserScoped(String path, Object body)
+	{
+		send(path, body, false);
+	}
+
+	private void send(String path, Object body, boolean includeAccountHeaders)
+	{
 		String token = config.token();
 		if (token == null || token.isEmpty())
 		{
@@ -75,16 +92,19 @@ public class RuneManagerApi
 			return;
 		}
 
-		Request request = new Request.Builder()
+		Request.Builder builder = new Request.Builder()
 			.url(url)
 			.header("Authorization", "Bearer " + token)
 			.header("Accept", "application/json")
-			.header("X-Account-Hash", accountState.accountHash())
-			.header("X-Account-Username", accountState.username())
-			.put(RequestBody.create(JSON, gson.toJson(body)))
-			.build();
+			.put(RequestBody.create(JSON, gson.toJson(body)));
 
-		httpClient.newCall(request).enqueue(new Callback()
+		if (includeAccountHeaders)
+		{
+			builder.header("X-Account-Hash", accountState.accountHash());
+			builder.header("X-Account-Username", accountState.username());
+		}
+
+		httpClient.newCall(builder.build()).enqueue(new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)

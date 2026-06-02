@@ -6,6 +6,7 @@ import com.zlimon.runemanager.push.EquipmentPushService;
 import com.zlimon.runemanager.push.InventoryPushService;
 import com.zlimon.runemanager.push.LootingBagPushService;
 import com.zlimon.runemanager.push.QuestPushService;
+import com.zlimon.runemanager.push.ResourcePackPushService;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.ConfigManager;
@@ -50,6 +51,9 @@ public class RuneManagerPlugin extends Plugin
 	@Inject
 	private LootingBagPushService lootingBagPushService;
 
+	@Inject
+	private ResourcePackPushService resourcePackPushService;
+
 	@Override
 	protected void startUp()
 	{
@@ -62,8 +66,13 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(equipmentPushService);
 		eventBus.register(questPushService);
 		eventBus.register(lootingBagPushService);
+		eventBus.register(resourcePackPushService);
 
 		attemptLoginIfNeeded();
+
+		// Sync the currently-configured resource pack once on startup so users who
+		// enabled RuneManager after RuneLite was already running still get mirrored.
+		resourcePackPushService.pushCurrent();
 	}
 
 	@Override
@@ -75,6 +84,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(equipmentPushService);
 		eventBus.unregister(questPushService);
 		eventBus.unregister(lootingBagPushService);
+		eventBus.unregister(resourcePackPushService);
 
 		log.debug("RuneManager stopped");
 	}
