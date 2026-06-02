@@ -1,6 +1,7 @@
 package com.zlimon.runemanager.push;
 
 import com.zlimon.runemanager.RuneManagerApi;
+import com.zlimon.runemanager.RuneManagerConfig;
 import java.util.Collections;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -12,6 +13,8 @@ import net.runelite.client.events.ConfigChanged;
 /**
  * Mirrors the currently-active RuneLite resource pack to the RuneManager backend
  * so the website's theme follows the in-client theme.
+ *
+ * Off by default — gated on {@link RuneManagerConfig#applyThemeToWebsite()}.
  *
  * Reads from the community Resource Packs plugin (melky's) — config group
  * {@code resourcepacks}:
@@ -29,12 +32,17 @@ import net.runelite.client.events.ConfigChanged;
 @Singleton
 public class ResourcePackPushService
 {
-	private static final String GROUP = "resourcepacks";
+	private static final String RESOURCE_PACKS_GROUP = "resourcepacks";
 	private static final String KEY_MODE = "resourcePack";
 	private static final String KEY_HUB_PACK = "selectedHubPack";
 
+	private static final String KEY_APPLY_THEME = "applyThemeToWebsite";
+
 	@Inject
 	private ConfigManager configManager;
+
+	@Inject
+	private RuneManagerConfig config;
 
 	@Inject
 	private RuneManagerApi api;
@@ -42,27 +50,40 @@ public class ResourcePackPushService
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!GROUP.equals(event.getGroup()))
+		// Active pack changed in the community plugin.
+		if (RESOURCE_PACKS_GROUP.equals(event.getGroup())
+			&& (KEY_MODE.equals(event.getKey()) || KEY_HUB_PACK.equals(event.getKey())))
 		{
+			pushCurrent();
 			return;
 		}
 
-		if (!KEY_MODE.equals(event.getKey()) && !KEY_HUB_PACK.equals(event.getKey()))
+		// User flipped our toggle on — push the current state immediately so it
+		// reflects without waiting for the next pack change.
+		if (RuneManagerConfig.GROUP.equals(event.getGroup())
+			&& KEY_APPLY_THEME.equals(event.getKey())
+			&& "true".equals(event.getNewValue()))
 		{
-			return;
+			pushCurrent();
 		}
-
-		pushCurrent();
 	}
 
 	/**
 	 * Read the active hub pack from the community plugin's config and push it.
 	 * Exposed for {@code RuneManagerPlugin.startUp()} so plugins enabled after
 	 * RuneLite has already loaded still sync once.
+	 *
+	 * Short-circuits when the user hasn't opted in to theme sync.
 	 */
 	public void pushCurrent()
 	{
-		String mode = configManager.getConfiguration(GROUP, KEY_MODE);
+		if (!config.applyThemeToWebsite())
+		{
+			log.debug("RuneManager: applyThemeToWebsite is off, skipping pack push");
+			return;
+		}
+
+		String mode = configManager.getConfiguration(RESOURCE_PACKS_GROUP, KEY_MODE);
 
 		if (!"HUB".equals(mode))
 		{
@@ -70,7 +91,7 @@ public class ResourcePackPushService
 			return;
 		}
 
-		String hubPack = configManager.getConfiguration(GROUP, KEY_HUB_PACK);
+		String hubPack = configManager.getConfiguration(RESOURCE_PACKS_GROUP, KEY_HUB_PACK);
 
 		if (hubPack == null || hubPack.isEmpty())
 		{

@@ -24,6 +24,13 @@ public interface RuneManagerConfig extends Config
 	)
 	String credentialsSection = "credentials";
 
+	@ConfigSection(
+		name = "Theme sync",
+		description = "Mirror your in-game resource pack to your RuneManager website",
+		position = 2
+	)
+	String themeSyncSection = "themeSync";
+
 	@ConfigItem(
 		keyName = "baseUrl",
 		name = "Base URL",
@@ -70,5 +77,18 @@ public interface RuneManagerConfig extends Config
 	default String token()
 	{
 		return "";
+	}
+
+	@ConfigItem(
+		keyName = "applyThemeToWebsite",
+		name = "Apply RuneLite theme to website",
+		description = "When the community Resource Packs plugin is in HUB mode, push the active pack name to your RuneManager website so it renders in the same theme.",
+		warning = "This feature submits your IP address to a 3rd-party server not controlled or verified by RuneLite developers",
+		section = themeSyncSection,
+		position = 0
+	)
+	default boolean applyThemeToWebsite()
+	{
+		return false;
 	}
 }
