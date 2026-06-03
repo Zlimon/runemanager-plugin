@@ -74,6 +74,7 @@ public class RuneManagerPlugin extends Plugin
 		// no GameStateChanged event will fire — capture the hash now instead
 		// of waiting for the next login transition.
 		accountState.captureIfLoggedIn();
+		questPushService.pushIfLoggedIn();
 
 		// Sync the currently-configured resource pack once on startup so users who
 		// enabled RuneManager after RuneLite was already running still get mirrored.

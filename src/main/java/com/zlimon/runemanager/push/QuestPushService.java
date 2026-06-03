@@ -13,6 +13,7 @@ import net.runelite.api.GameState;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 
 /**
@@ -30,6 +31,9 @@ public class QuestPushService
 	private Client client;
 
 	@Inject
+	private ClientThread clientThread;
+
+	@Inject
 	private RuneManagerApi api;
 
 	@Subscribe
@@ -41,6 +45,22 @@ public class QuestPushService
 		}
 
 		api.put("/api/plugin/quests", buildPayload());
+	}
+
+	/**
+	 * Called by {@code RuneManagerPlugin.startUp()} so a plugin enabled after
+	 * the player is already in-game still pushes the quest snapshot — without
+	 * waiting for the next LOGGED_IN transition (which won't fire). Quest
+	 * state reads need the client thread.
+	 */
+	public void pushIfLoggedIn()
+	{
+		clientThread.invoke(() -> {
+			if (client.getGameState() == GameState.LOGGED_IN)
+			{
+				api.put("/api/plugin/quests", buildPayload());
+			}
+		});
 	}
 
 	private Map<String, Object> buildPayload()
