@@ -57,7 +57,9 @@ public class PluginAccountState
 	public void captureIfLoggedIn()
 	{
 		clientThread.invoke(() -> {
-			if (client.getGameState() == GameState.LOGGED_IN)
+			GameState state = client.getGameState();
+			log.debug("RuneManager: captureIfLoggedIn ran — gameState={}", state);
+			if (state == GameState.LOGGED_IN)
 			{
 				refreshFromClient();
 			}
@@ -66,6 +68,14 @@ public class PluginAccountState
 
 	public boolean isReady()
 	{
+		if ((accountHash == null || username == null) && client.getGameState() == GameState.LOGGED_IN)
+		{
+			// Lazy capture for the mid-session plugin-enable case where no
+			// LOGGED_IN GameStateChanged event fires. Push services dispatch
+			// through @Subscribe (client thread), so calling refreshFromClient
+			// inline here is safe — getLocalPlayer() is on the right thread.
+			refreshFromClient();
+		}
 		return accountHash != null && username != null;
 	}
 
@@ -86,6 +96,10 @@ public class PluginAccountState
 
 		if (hash == -1L || player == null || player.getName() == null)
 		{
+			log.debug("RuneManager: refreshFromClient bailed — hash={} player={} name={}",
+				hash,
+				player == null ? "null" : "present",
+				player == null ? "n/a" : player.getName());
 			return;
 		}
 
