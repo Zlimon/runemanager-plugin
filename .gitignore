@@ -7,3 +7,5 @@ build
 nbactions.xml
 nb-configuration.xml
 nbproject/
+.gradle-docker/
+.gradle-docker-project/

@@ -72,9 +72,9 @@ public class RuneManagerPlugin extends Plugin
 
 		// If RuneManager was enabled mid-session (player already logged in),
 		// no GameStateChanged event will fire — capture the hash now instead
-		// of waiting for the next login transition.
+		// of waiting for the next login transition. QuestPushService doesn't
+		// need a similar hook: it retries on GameTick until the push lands.
 		accountState.captureIfLoggedIn();
-		questPushService.pushIfLoggedIn();
 
 		// Sync the currently-configured resource pack once on startup so users who
 		// enabled RuneManager after RuneLite was already running still get mirrored.
