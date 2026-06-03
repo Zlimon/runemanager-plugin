@@ -7,6 +7,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 
 /**
@@ -25,6 +26,9 @@ public class PluginAccountState
 	@Inject
 	private Client client;
 
+	@Inject
+	private ClientThread clientThread;
+
 	private volatile String accountHash;
 	private volatile String username;
 
@@ -41,6 +45,23 @@ public class PluginAccountState
 		{
 			clear();
 		}
+	}
+
+	/**
+	 * Called by {@code RuneManagerPlugin.startUp()} so a plugin enabled after the
+	 * player is already in-game still captures the hash — without waiting for a
+	 * LOGGED_IN transition that won't fire if no state change happens. Marshalled
+	 * through {@link ClientThread} because {@code getLocalPlayer()} must run on
+	 * the client thread.
+	 */
+	public void captureIfLoggedIn()
+	{
+		clientThread.invoke(() -> {
+			if (client.getGameState() == GameState.LOGGED_IN)
+			{
+				refreshFromClient();
+			}
+		});
 	}
 
 	public boolean isReady()
