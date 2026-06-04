@@ -4,10 +4,12 @@ import com.google.inject.Provides;
 import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
+import com.zlimon.runemanager.push.HeartbeatService;
 import com.zlimon.runemanager.push.InventoryPushService;
 import com.zlimon.runemanager.push.LootingBagPushService;
 import com.zlimon.runemanager.push.QuestPushService;
 import com.zlimon.runemanager.push.ResourcePackPushService;
+import java.time.temporal.ChronoUnit;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.ConfigManager;
@@ -16,6 +18,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.task.Schedule;
 
 @Slf4j
 @PluginDescriptor(
@@ -57,6 +60,9 @@ public class RuneManagerPlugin extends Plugin
 
 	@Inject
 	private AvatarPushService avatarPushService;
+
+	@Inject
+	private HeartbeatService heartbeatService;
 
 	@Inject
 	private ConfigManager configManager;
@@ -125,6 +131,16 @@ public class RuneManagerPlugin extends Plugin
 			avatarPushService.requestImmediateCapture();
 			configManager.setConfiguration(RuneManagerConfig.GROUP, "uploadAvatar", false);
 		}
+	}
+
+	/**
+	 * Presence heartbeat — fires regardless of game state, but the API call
+	 * no-ops unless the player is logged in and the account state is ready.
+	 */
+	@Schedule(period = 60, unit = ChronoUnit.SECONDS)
+	public void heartbeat()
+	{
+		heartbeatService.ping();
 	}
 
 	private void attemptLoginIfNeeded()
