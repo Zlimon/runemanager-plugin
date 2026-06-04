@@ -8,6 +8,7 @@ import com.zlimon.runemanager.push.InventoryPushService;
 import com.zlimon.runemanager.push.LootingBagPushService;
 import com.zlimon.runemanager.push.QuestPushService;
 import com.zlimon.runemanager.push.ResourcePackPushService;
+import java.io.File;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.ConfigManager;
@@ -54,6 +55,9 @@ public class RuneManagerPlugin extends Plugin
 
 	@Inject
 	private ResourcePackPushService resourcePackPushService;
+
+	@Inject
+	private HiscoreIconExtractor hiscoreIconExtractor;
 
 	@Inject
 	private AvatarPushService avatarPushService;
@@ -116,6 +120,15 @@ public class RuneManagerPlugin extends Plugin
 		if ("email".equals(event.getKey()) || "password".equals(event.getKey()) || "baseUrl".equals(event.getKey()))
 		{
 			attemptLoginIfNeeded();
+		}
+
+		// One-shot hiscore-icon dump for the website maintainer. Auto-resets so
+		// the next launch doesn't repeat the work.
+		if ("extractHiscoreIcons".equals(event.getKey()) && "true".equals(event.getNewValue()))
+		{
+			File outDir = hiscoreIconExtractor.extractAll();
+			configManager.setConfiguration(RuneManagerConfig.GROUP, "extractHiscoreIcons", false);
+			log.info("RuneManager: hiscore icons extracted to {} — copy to /public/images/boss/ on the website", outDir);
 		}
 
 		// One-shot manual avatar capture+upload. Auto-resets; the actual capture

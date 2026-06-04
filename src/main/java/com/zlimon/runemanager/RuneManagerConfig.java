@@ -93,6 +93,27 @@ public interface RuneManagerConfig extends Config
 	}
 
 	/**
+	 * One-shot toggle: flipping this to true dumps every HiscoreSkill sprite
+	 * (the 25×25 icons the RuneLite hiscore panel uses) into
+	 * {@code ~/.runelite/runemanager-hiscore-icons/}. The flag is auto-reset
+	 * to false once the dump completes so it doesn't loop on every launch.
+	 *
+	 * Intended for the website maintainer to bootstrap /public/images/boss/
+	 * with the in-game icons; can be removed once the assets are committed.
+	 */
+	@ConfigItem(
+		keyName = "extractHiscoreIcons",
+		name = "Extract hiscore icons",
+		description = "Dump the RuneLite hiscore-panel sprites to ~/.runelite/runemanager-hiscore-icons/ then auto-clear",
+		section = connectionSection,
+		position = 50
+	)
+	default boolean extractHiscoreIcons()
+	{
+		return false;
+	}
+
+	/**
 	 * One-shot toggle: captures your current player model and uploads it as the
 	 * RuneManager account avatar. The avatar also re-syncs automatically when you
 	 * change equipment; this button forces a capture now. Auto-resets to false.
