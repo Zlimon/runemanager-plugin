@@ -2,6 +2,7 @@ package com.zlimon.runemanager;
 
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -36,6 +38,7 @@ import okhttp3.Response;
 public class RuneManagerApi
 {
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+	private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	@Inject
 	private OkHttpClient httpClient;
@@ -76,6 +79,81 @@ public class RuneManagerApi
 		send(path, body, false);
 	}
 
+	/**
+	 * A single multipart file part built from in-memory bytes (e.g. an avatar
+	 * model serialised on the fly rather than read from disk). The filename's
+	 * extension matters — the backend validates uploads by extension.
+	 */
+	public static final class Part
+	{
+		private final String field;
+		private final String filename;
+		private final byte[] bytes;
+
+		public Part(String field, String filename, byte[] bytes)
+		{
+			this.field = field;
+			this.filename = filename;
+			this.bytes = bytes;
+		}
+	}
+
+	/**
+	 * Fire-and-forget multipart POST for OSRS-account-scoped uploads built from
+	 * in-memory bytes (e.g. the serialised avatar OBJ/MTL). Requires the account
+	 * state to be ready, like {@link #put(String, Object)}.
+	 */
+	public void postParts(String path, List<Part> parts)
+	{
+		if (parts.isEmpty())
+		{
+			log.warn("RuneManager: skipping {} — no parts to upload", path);
+			return;
+		}
+
+		MultipartBody.Builder bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM);
+		for (Part part : parts)
+		{
+			bodyBuilder.addFormDataPart(part.field, part.filename, RequestBody.create(OCTET_STREAM, part.bytes));
+		}
+
+		sendMultipart(path, bodyBuilder.build());
+	}
+
+	private void sendMultipart(String path, MultipartBody body)
+	{
+		if (!accountState.isReady())
+		{
+			log.debug("RuneManager: skipping {} — account state not ready", path);
+			return;
+		}
+
+		String token = config.token();
+		if (token == null || token.isEmpty())
+		{
+			log.debug("RuneManager: skipping {} — no API token, log in via the plugin config", path);
+			return;
+		}
+
+		HttpUrl url = HttpUrl.parse(normaliseBaseUrl(config.baseUrl()) + path);
+		if (url == null)
+		{
+			log.warn("RuneManager: invalid base URL '{}', skipping {}", config.baseUrl(), path);
+			return;
+		}
+
+		Request request = new Request.Builder()
+			.url(url)
+			.header("Authorization", "Bearer " + token)
+			.header("Accept", "application/json")
+			.header("X-Account-Hash", accountState.accountHash())
+			.header("X-Account-Username", accountState.username())
+			.post(body)
+			.build();
+
+		httpClient.newCall(request).enqueue(responseCallback(path));
+	}
+
 	private void send(String path, Object body, boolean includeAccountHeaders)
 	{
 		String token = config.token();
@@ -104,7 +182,16 @@ public class RuneManagerApi
 			builder.header("X-Account-Username", accountState.username());
 		}
 
-		httpClient.newCall(builder.build()).enqueue(new Callback()
+		httpClient.newCall(builder.build()).enqueue(responseCallback(path));
+	}
+
+	/**
+	 * Shared fire-and-forget response handler: logs success, clears a rejected
+	 * token on 401, and logs other failures. Used by every request variant.
+	 */
+	private Callback responseCallback(String path)
+	{
+		return new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
@@ -138,7 +225,7 @@ public class RuneManagerApi
 					log.warn("RuneManager: failed to read response from {}: {}", path, e.getMessage());
 				}
 			}
-		});
+		};
 	}
 
 	private static String normaliseBaseUrl(String url)

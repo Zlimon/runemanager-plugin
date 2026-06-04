@@ -91,4 +91,21 @@ public interface RuneManagerConfig extends Config
 	{
 		return false;
 	}
+
+	/**
+	 * One-shot toggle: captures your current player model and uploads it as the
+	 * RuneManager account avatar. The avatar also re-syncs automatically when you
+	 * change equipment; this button forces a capture now. Auto-resets to false.
+	 */
+	@ConfigItem(
+		keyName = "uploadAvatar",
+		name = "Sync avatar now",
+		description = "Capture your current character model and upload it as your RuneManager avatar (also happens automatically on equipment change)",
+		section = connectionSection,
+		position = 60
+	)
+	default boolean uploadAvatar()
+	{
+		return false;
+	}
 }

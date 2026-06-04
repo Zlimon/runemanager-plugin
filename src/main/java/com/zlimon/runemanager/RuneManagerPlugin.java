@@ -1,6 +1,7 @@
 package com.zlimon.runemanager;
 
 import com.google.inject.Provides;
+import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
 import com.zlimon.runemanager.push.InventoryPushService;
@@ -54,6 +55,12 @@ public class RuneManagerPlugin extends Plugin
 	@Inject
 	private ResourcePackPushService resourcePackPushService;
 
+	@Inject
+	private AvatarPushService avatarPushService;
+
+	@Inject
+	private ConfigManager configManager;
+
 	@Override
 	protected void startUp()
 	{
@@ -67,6 +74,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(questPushService);
 		eventBus.register(lootingBagPushService);
 		eventBus.register(resourcePackPushService);
+		eventBus.register(avatarPushService);
 
 		attemptLoginIfNeeded();
 
@@ -91,6 +99,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(questPushService);
 		eventBus.unregister(lootingBagPushService);
 		eventBus.unregister(resourcePackPushService);
+		eventBus.unregister(avatarPushService);
 
 		log.debug("RuneManager stopped");
 	}
@@ -107,6 +116,14 @@ public class RuneManagerPlugin extends Plugin
 		if ("email".equals(event.getKey()) || "password".equals(event.getKey()) || "baseUrl".equals(event.getKey()))
 		{
 			attemptLoginIfNeeded();
+		}
+
+		// One-shot manual avatar capture+upload. Auto-resets; the actual capture
+		// happens on the next idle tick (see AvatarPushService).
+		if ("uploadAvatar".equals(event.getKey()) && "true".equals(event.getNewValue()))
+		{
+			avatarPushService.requestImmediateCapture();
+			configManager.setConfiguration(RuneManagerConfig.GROUP, "uploadAvatar", false);
 		}
 	}
 
