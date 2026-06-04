@@ -3,6 +3,7 @@ package com.zlimon.runemanager;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +78,79 @@ public class RuneManagerApi
 	public void putUserScoped(String path, Object body)
 	{
 		send(path, body, false);
+	}
+
+	/**
+	 * OSRS-account-scoped GET. On a 2xx the (string) response body is handed to
+	 * {@code onBody} on OkHttp's thread; callers must hop to the client thread
+	 * themselves for any game interaction. Skipped if the account state isn't
+	 * ready or there's no token.
+	 */
+	public void get(String path, Consumer<String> onBody)
+	{
+		if (!accountState.isReady())
+		{
+			log.debug("RuneManager: skipping GET {} — account state not ready", path);
+			return;
+		}
+
+		String token = config.token();
+		if (token == null || token.isEmpty())
+		{
+			log.debug("RuneManager: skipping GET {} — no API token", path);
+			return;
+		}
+
+		HttpUrl url = HttpUrl.parse(normaliseBaseUrl(config.baseUrl()) + path);
+		if (url == null)
+		{
+			log.warn("RuneManager: invalid base URL '{}', skipping GET {}", config.baseUrl(), path);
+			return;
+		}
+
+		Request request = new Request.Builder()
+			.url(url)
+			.header("Authorization", "Bearer " + token)
+			.header("Accept", "application/json")
+			.header("X-Account-Hash", accountState.accountHash())
+			.header("X-Account-Username", accountState.username())
+			.get()
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.warn("RuneManager: GET {} failed: {}", path, e.getMessage());
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (Response r = response)
+				{
+					if (r.isSuccessful() && r.body() != null)
+					{
+						onBody.accept(r.body().string());
+						return;
+					}
+
+					if (r.code() == 401)
+					{
+						log.warn("RuneManager: GET {} rejected our token (401); clearing it", path);
+						configManager.setConfiguration(RuneManagerConfig.GROUP, "token", "");
+						return;
+					}
+
+					log.warn("RuneManager: GET {} returned {}", path, r.code());
+				}
+				catch (IOException e)
+				{
+					log.warn("RuneManager: failed to read GET response from {}: {}", path, e.getMessage());
+				}
+			}
+		});
 	}
 
 	/**

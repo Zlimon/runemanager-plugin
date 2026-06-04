@@ -1,6 +1,7 @@
 package com.zlimon.runemanager;
 
 import com.google.inject.Provides;
+import com.zlimon.runemanager.push.AnnouncementService;
 import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
@@ -63,6 +64,9 @@ public class RuneManagerPlugin extends Plugin
 
 	@Inject
 	private HeartbeatService heartbeatService;
+
+	@Inject
+	private AnnouncementService announcementService;
 
 	@Inject
 	private ConfigManager configManager;
@@ -141,6 +145,16 @@ public class RuneManagerPlugin extends Plugin
 	public void heartbeat()
 	{
 		heartbeatService.ping();
+	}
+
+	/**
+	 * Pull and display any new announcements (SPEC §9.2). No-ops unless logged
+	 * in and ready.
+	 */
+	@Schedule(period = 120, unit = ChronoUnit.SECONDS)
+	public void pollAnnouncements()
+	{
+		announcementService.poll();
 	}
 
 	private void attemptLoginIfNeeded()
