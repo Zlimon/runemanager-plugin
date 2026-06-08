@@ -2,7 +2,7 @@ package com.zlimon.runemanager.push;
 
 import com.google.gson.Gson;
 import com.zlimon.runemanager.RuneManagerApi;
-import java.util.Collections;
+import java.util.HashMap;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +71,10 @@ public class AnnouncementService
 			}
 
 			show(announcement);
-			api.put("/api/plugin/announcements/" + announcement.id + "/acknowledge", Collections.emptyMap());
+			// A plain HashMap, not Collections.emptyMap(): Gson serialises the latter
+			// (a JDK-internal class) by reflection, which throws on JDK 16+ and would
+			// silently drop the ack — re-showing the announcement on every poll.
+			api.put("/api/plugin/announcements/" + announcement.id + "/acknowledge", new HashMap<>());
 		}
 	}
 

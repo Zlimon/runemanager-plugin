@@ -1,7 +1,7 @@
 package com.zlimon.runemanager.push;
 
 import com.zlimon.runemanager.RuneManagerApi;
-import java.util.Collections;
+import java.util.HashMap;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +21,9 @@ public class HeartbeatService
 
 	public void ping()
 	{
-		api.put("/api/plugin/heartbeat", Collections.emptyMap());
+		// A plain HashMap, not Collections.emptyMap(): Gson serialises the latter
+		// (a JDK-internal class) by reflection, which throws InaccessibleObjectException
+		// on JDK 16+, silently dropping the request before it's sent.
+		api.put("/api/plugin/heartbeat", new HashMap<>());
 	}
 }
