@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
 import net.runelite.api.Player;
+import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.gameval.InventoryID;
@@ -19,11 +20,13 @@ import net.runelite.client.eventbus.Subscribe;
  * Captures the local player's 3D model and uploads it to RuneManager as the
  * account avatar — no third-party export plugin required.
  *
- * Re-captures automatically when worn equipment changes (so the avatar tracks
- * gear swaps), coalescing bursts via a short debounce and waiting for an idle
- * pose so the model isn't frozen mid-animation. The geometry is read on the
- * client thread (RuneLite reuses those arrays) and serialised + uploaded
- * off-thread. A manual config button reuses the same path with no debounce.
+ * The snapshot is taken mid-activity: when the player starts an action animation
+ * (chopping, attacking, casting, …) we capture the posed model a tick in, so the
+ * avatar freezes mid-swing rather than standing idle. It re-captures on gear
+ * swaps and settles back to an idle pose shortly after the action stops.
+ * Re-captures are throttled so combat/skilling don't spam uploads. Geometry is
+ * read on the client thread (RuneLite reuses those arrays) and serialised +
+ * uploaded off-thread.
  */
 @Slf4j
 @Singleton
@@ -31,6 +34,12 @@ public class AvatarPushService
 {
 	/** Coalesce gear-swap bursts into a single capture once things settle. */
 	private static final long DEBOUNCE_MS = 3000L;
+	/** Wait ~1 tick into an action so the captured frame is mid-animation. */
+	private static final long ACTION_DELAY_MS = 600L;
+	/** Let an idle pose settle before capturing it after an action stops. */
+	private static final long IDLE_SETTLE_MS = 1200L;
+	/** Floor between uploads so repeated attacks/skilling don't spam the API. */
+	private static final long MIN_UPLOAD_INTERVAL_MS = 15000L;
 	/** Actor.getAnimation() sentinel for "no active animation". */
 	private static final int IDLE_ANIMATION = -1;
 
@@ -45,6 +54,8 @@ public class AvatarPushService
 
 	private volatile boolean capturePending = false;
 	private volatile long captureNotBefore = 0L;
+	private int lastCapturedAnimation = Integer.MIN_VALUE;
+	private long lastUploadMs = 0L;
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
@@ -54,20 +65,50 @@ public class AvatarPushService
 			return;
 		}
 
-		// Equipment changed — schedule a debounced re-capture.
+		// Equipment changed — always re-capture (current pose) after a short debounce.
+		scheduleCapture(DEBOUNCE_MS);
+	}
+
+	@Subscribe
+	public void onAnimationChanged(AnimationChanged event)
+	{
+		if (event.getActor() != client.getLocalPlayer())
+		{
+			return;
+		}
+
+		int animation = client.getLocalPlayer().getAnimation();
+		if (animation == lastCapturedAnimation)
+		{
+			return; // Already showing this pose (e.g. the same repeating attack).
+		}
+
+		if (System.currentTimeMillis() - lastUploadMs < MIN_UPLOAD_INTERVAL_MS)
+		{
+			return; // Throttle: keep the current avatar until the cooldown passes.
+		}
+
+		// Mid-action poses capture quickly; an idle pose waits a touch longer so a
+		// brief gap between actions doesn't flip the avatar back to standing.
+		scheduleCapture(animation == IDLE_ANIMATION ? IDLE_SETTLE_MS : ACTION_DELAY_MS);
+	}
+
+	private void scheduleCapture(long delayMs)
+	{
 		capturePending = true;
-		captureNotBefore = System.currentTimeMillis() + DEBOUNCE_MS;
+		captureNotBefore = System.currentTimeMillis() + delayMs;
 	}
 
 	/**
-	 * Manual trigger (config button): capture at the next idle tick, skipping
-	 * the gear-swap debounce.
+	 * Manual trigger (config button): capture at the next tick, skipping the
+	 * debounce and the upload throttle.
 	 */
 	public void requestImmediateCapture()
 	{
 		capturePending = true;
 		captureNotBefore = 0L;
-		log.info("RuneManager: avatar capture requested — will capture on the next idle game tick");
+		lastUploadMs = 0L;
+		log.info("RuneManager: avatar capture requested — will capture on the next game tick");
 	}
 
 	@Subscribe
@@ -82,13 +123,6 @@ public class AvatarPushService
 		if (player == null)
 		{
 			// Not in a world yet — keep waiting (no game ticks fire at the login screen).
-			return;
-		}
-
-		// Hold off (staying pending across ticks) until the player stands idle,
-		// so the captured pose isn't a swing/cast frame.
-		if (player.getAnimation() != IDLE_ANIMATION)
-		{
 			return;
 		}
 
@@ -120,6 +154,8 @@ public class AvatarPushService
 		int faceCount = model.getFaceCount();
 
 		capturePending = false;
+		lastCapturedAnimation = player.getAnimation();
+		lastUploadMs = System.currentTimeMillis();
 
 		executor.submit(() -> serializeAndUpload(
 			verticesX, verticesY, verticesZ, vertexCount,
