@@ -68,7 +68,23 @@ public class RuneManagerApi
 			return;
 		}
 
-		send(path, body, true);
+		send(path, body, true, "PUT");
+	}
+
+	/**
+	 * Fire-and-forget POST for OSRS-account-scoped data. Used by append-only
+	 * endpoints (e.g. loot) where each push adds a row rather than replacing a
+	 * snapshot. Skipped silently if the plugin isn't ready.
+	 */
+	public void post(String path, Object body)
+	{
+		if (!accountState.isReady())
+		{
+			log.debug("RuneManager: skipping {} — account state not ready", path);
+			return;
+		}
+
+		send(path, body, true, "POST");
 	}
 
 	/**
@@ -77,7 +93,7 @@ public class RuneManagerApi
 	 */
 	public void putUserScoped(String path, Object body)
 	{
-		send(path, body, false);
+		send(path, body, false, "PUT");
 	}
 
 	/**
@@ -228,7 +244,7 @@ public class RuneManagerApi
 		httpClient.newCall(request).enqueue(responseCallback(path));
 	}
 
-	private void send(String path, Object body, boolean includeAccountHeaders)
+	private void send(String path, Object body, boolean includeAccountHeaders, String method)
 	{
 		String token = config.token();
 		if (token == null || token.isEmpty())
@@ -248,7 +264,7 @@ public class RuneManagerApi
 			.url(url)
 			.header("Authorization", "Bearer " + token)
 			.header("Accept", "application/json")
-			.put(RequestBody.create(JSON, gson.toJson(body)));
+			.method(method, RequestBody.create(JSON, gson.toJson(body)));
 
 		if (includeAccountHeaders)
 		{

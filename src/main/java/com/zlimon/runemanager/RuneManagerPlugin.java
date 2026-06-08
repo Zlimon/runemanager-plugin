@@ -7,6 +7,7 @@ import com.zlimon.runemanager.push.BankPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
 import com.zlimon.runemanager.push.HeartbeatService;
 import com.zlimon.runemanager.push.InventoryPushService;
+import com.zlimon.runemanager.push.LootPushService;
 import com.zlimon.runemanager.push.LootingBagPushService;
 import com.zlimon.runemanager.push.QuestPushService;
 import com.zlimon.runemanager.push.ResourcePackPushService;
@@ -57,6 +58,9 @@ public class RuneManagerPlugin extends Plugin
 	private LootingBagPushService lootingBagPushService;
 
 	@Inject
+	private LootPushService lootPushService;
+
+	@Inject
 	private ResourcePackPushService resourcePackPushService;
 
 	@Inject
@@ -83,6 +87,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(equipmentPushService);
 		eventBus.register(questPushService);
 		eventBus.register(lootingBagPushService);
+		eventBus.register(lootPushService);
 		eventBus.register(resourcePackPushService);
 		eventBus.register(avatarPushService);
 
@@ -108,6 +113,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(equipmentPushService);
 		eventBus.unregister(questPushService);
 		eventBus.unregister(lootingBagPushService);
+		eventBus.unregister(lootPushService);
 		eventBus.unregister(resourcePackPushService);
 		eventBus.unregister(avatarPushService);
 
