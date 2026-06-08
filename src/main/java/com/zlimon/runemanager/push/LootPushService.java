@@ -83,6 +83,7 @@ public class LootPushService
 
 		Map<String, Object> entry = new HashMap<>();
 		entry.put("source", event.getName());
+		entry.put("type", event.getType() != null ? event.getType().name() : null);
 		entry.put("items", items);
 		entry.put("total_value", totalValue);
 		entry.put("killed_at", Instant.now().toString());
