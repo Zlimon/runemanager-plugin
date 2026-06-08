@@ -10,6 +10,7 @@ import com.zlimon.runemanager.push.InventoryPushService;
 import com.zlimon.runemanager.push.LootPushService;
 import com.zlimon.runemanager.push.LootingBagPushService;
 import com.zlimon.runemanager.push.PositionPushService;
+import com.zlimon.runemanager.push.VitalsPushService;
 import com.zlimon.runemanager.push.QuestPushService;
 import com.zlimon.runemanager.push.ResourcePackPushService;
 import java.time.temporal.ChronoUnit;
@@ -65,6 +66,9 @@ public class RuneManagerPlugin extends Plugin
 	private PositionPushService positionPushService;
 
 	@Inject
+	private VitalsPushService vitalsPushService;
+
+	@Inject
 	private ResourcePackPushService resourcePackPushService;
 
 	@Inject
@@ -93,6 +97,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(lootingBagPushService);
 		eventBus.register(lootPushService);
 		eventBus.register(positionPushService);
+		eventBus.register(vitalsPushService);
 		eventBus.register(resourcePackPushService);
 		eventBus.register(avatarPushService);
 
@@ -120,6 +125,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(lootingBagPushService);
 		eventBus.unregister(lootPushService);
 		eventBus.unregister(positionPushService);
+		eventBus.unregister(vitalsPushService);
 		eventBus.unregister(resourcePackPushService);
 		eventBus.unregister(avatarPushService);
 
