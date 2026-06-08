@@ -4,6 +4,7 @@ import com.zlimon.runemanager.RuneManagerApi;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -13,6 +14,7 @@ import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.eventbus.Subscribe;
@@ -47,7 +49,8 @@ public class StatusPushService
 
 	private Skill lastSkill;
 	private int lastActionTick = Integer.MIN_VALUE;
-	private String lastPushed;
+	private String lastActivity;
+	private String lastLocation;
 	private long lastSentMs;
 
 	@Subscribe
@@ -66,23 +69,34 @@ public class StatusPushService
 			return;
 		}
 
-		String activity = computeActivity(local);
+		String location = currentArea(local);
+		String activity = computeActivity(local, location);
 		long now = System.currentTimeMillis();
 
-		if (activity.equals(lastPushed) || now - lastSentMs < MIN_INTERVAL_MS)
+		boolean changed = !activity.equals(lastActivity) || !Objects.equals(location, lastLocation);
+		if (!changed || now - lastSentMs < MIN_INTERVAL_MS)
 		{
 			return;
 		}
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("activity", activity);
+		body.put("location", location);
 		api.put("/api/plugin/status", body);
 
-		lastPushed = activity;
+		lastActivity = activity;
+		lastLocation = location;
 		lastSentMs = now;
 	}
 
-	private String computeActivity(Player local)
+	/** The named OSRS area the player is standing in, or null if not mapped. */
+	private String currentArea(Player local)
+	{
+		WorldPoint location = local.getWorldLocation();
+		return location == null ? null : DiscordRegions.nameForRegion(location.getRegionID());
+	}
+
+	private String computeActivity(Player local, String location)
 	{
 		boolean recentAction = client.getTickCount() - lastActionTick <= IDLE_AFTER_TICKS;
 
@@ -101,6 +115,7 @@ public class StatusPushService
 			return lastSkill.getName();
 		}
 
-		return "Idle";
+		// Not actively training or fighting — show where they are, else just Idle.
+		return location != null ? location : "Idle";
 	}
 }
