@@ -7,8 +7,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
+import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
@@ -126,40 +128,73 @@ public class AvatarPushService
 			return;
 		}
 
-		Model model = player.getModel();
-		if (model == null || model.getVerticesX() == null || model.getFaceIndices1() == null)
+		CapturedModel playerModel = capture(player.getModel());
+		if (playerModel == null)
 		{
-			// Model not built yet this tick — try again next tick.
+			// Model/colours not built yet this tick — try again next tick.
 			return;
 		}
 
-		short[] faceColors = readFaceColors(model);
-		if (faceColors == null)
+		// In a fight (the target shows a health bar) — grab the opponent's posed
+		// model too so the avatar is a combat tableau. Skipped for skilling NPCs
+		// like fishing spots, which have no health bar.
+		CapturedModel npcModel = null;
+		Actor target = player.getInteracting();
+		if (target instanceof NPC && target.getHealthScale() > 0)
 		{
-			// Geometry is here but we can't read colours — stop retrying so we
-			// don't silently spin every tick. Surfaced as a warning to diagnose.
-			log.warn("RuneManager: avatar capture skipped — player model has no readable face colours");
-			capturePending = false;
-			return;
+			npcModel = capture(target.getModel());
 		}
-
-		// Clone on the client thread — the API reuses these backing arrays.
-		float[] verticesX = model.getVerticesX().clone();
-		float[] verticesY = model.getVerticesY().clone();
-		float[] verticesZ = model.getVerticesZ().clone();
-		int vertexCount = model.getVerticesCount();
-		int[] faceIndicesA = model.getFaceIndices1().clone();
-		int[] faceIndicesB = model.getFaceIndices2().clone();
-		int[] faceIndicesC = model.getFaceIndices3().clone();
-		int faceCount = model.getFaceCount();
 
 		capturePending = false;
 		lastCapturedAnimation = player.getAnimation();
 		lastUploadMs = System.currentTimeMillis();
 
-		executor.submit(() -> serializeAndUpload(
-			verticesX, verticesY, verticesZ, vertexCount,
-			faceIndicesA, faceIndicesB, faceIndicesC, faceColors, faceCount));
+		CapturedModel npc = npcModel;
+		executor.submit(() -> serializeAndUpload(playerModel, npc));
+	}
+
+	/**
+	 * Clone an actor's posed model geometry on the client thread (RuneLite reuses
+	 * those backing arrays), or null if it isn't renderable this tick.
+	 */
+	private static CapturedModel capture(Model model)
+	{
+		if (model == null || model.getVerticesX() == null || model.getFaceIndices1() == null)
+		{
+			return null;
+		}
+
+		short[] faceColors = readFaceColors(model);
+		if (faceColors == null)
+		{
+			return null;
+		}
+
+		CapturedModel captured = new CapturedModel();
+		captured.verticesX = model.getVerticesX().clone();
+		captured.verticesY = model.getVerticesY().clone();
+		captured.verticesZ = model.getVerticesZ().clone();
+		captured.vertexCount = model.getVerticesCount();
+		captured.faceIndicesA = model.getFaceIndices1().clone();
+		captured.faceIndicesB = model.getFaceIndices2().clone();
+		captured.faceIndicesC = model.getFaceIndices3().clone();
+		captured.faceColors = faceColors;
+		captured.faceCount = model.getFaceCount();
+		return captured;
+	}
+
+	/** Cloned geometry for one actor, snapshotted off the reused client arrays. */
+	private static final class CapturedModel
+	{
+		private float[] verticesX;
+		private float[] verticesY;
+		private float[] verticesZ;
+		private int vertexCount;
+		private int[] faceIndicesA;
+		private int[] faceIndicesB;
+		private int[] faceIndicesC;
+		private short[] faceColors;
+		private int faceCount;
 	}
 
 	/**
@@ -190,27 +225,37 @@ public class AvatarPushService
 		return colors;
 	}
 
-	private void serializeAndUpload(
-		float[] verticesX, float[] verticesY, float[] verticesZ, int vertexCount,
-		int[] faceIndicesA, int[] faceIndicesB, int[] faceIndicesC,
-		short[] faceColors, int faceCount)
+	private void serializeAndUpload(CapturedModel player, CapturedModel npc)
 	{
 		try
 		{
-			ObjModelSerializer.Result result = ObjModelSerializer.serialize(
-				verticesX, verticesY, verticesZ, vertexCount,
-				faceIndicesA, faceIndicesB, faceIndicesC, faceColors, faceCount);
+			ObjModelSerializer.Result playerObj = serialize(player);
 
-			List<RuneManagerApi.Part> parts = new ArrayList<>(2);
-			parts.add(new RuneManagerApi.Part("model", "avatar.obj", result.obj()));
-			parts.add(new RuneManagerApi.Part("material", "avatar.mtl", result.mtl()));
+			List<RuneManagerApi.Part> parts = new ArrayList<>(4);
+			parts.add(new RuneManagerApi.Part("model", "avatar.obj", playerObj.obj()));
+			parts.add(new RuneManagerApi.Part("material", "avatar.mtl", playerObj.mtl()));
 
-			log.info("RuneManager: uploading player avatar ({} faces)", faceCount);
+			if (npc != null)
+			{
+				ObjModelSerializer.Result npcObj = serialize(npc);
+				parts.add(new RuneManagerApi.Part("npc_model", "avatar_npc.obj", npcObj.obj()));
+				parts.add(new RuneManagerApi.Part("npc_material", "avatar_npc.mtl", npcObj.mtl()));
+			}
+
+			log.info("RuneManager: uploading player avatar ({} faces{})",
+				player.faceCount, npc != null ? " + opponent " + npc.faceCount + " faces" : "");
 			api.postParts("/api/plugin/avatar", parts);
 		}
 		catch (RuntimeException e)
 		{
 			log.warn("RuneManager: avatar serialisation failed: {}", e.getMessage());
 		}
+	}
+
+	private static ObjModelSerializer.Result serialize(CapturedModel m)
+	{
+		return ObjModelSerializer.serialize(
+			m.verticesX, m.verticesY, m.verticesZ, m.vertexCount,
+			m.faceIndicesA, m.faceIndicesB, m.faceIndicesC, m.faceColors, m.faceCount);
 	}
 }
