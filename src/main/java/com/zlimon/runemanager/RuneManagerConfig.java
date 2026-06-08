@@ -31,6 +31,13 @@ public interface RuneManagerConfig extends Config
 	)
 	String themeSyncSection = "themeSync";
 
+	@ConfigSection(
+		name = "Live Map",
+		description = "Share your in-game location on your RuneManager website's Live Map",
+		position = 3
+	)
+	String liveMapSection = "liveMap";
+
 	@ConfigItem(
 		keyName = "baseUrl",
 		name = "Base URL",
@@ -88,6 +95,19 @@ public interface RuneManagerConfig extends Config
 		position = 0
 	)
 	default boolean applyThemeToWebsite()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "shareLocation",
+		name = "Share my location",
+		description = "Send your in-game position to your RuneManager website so your account shows on the Live Map. Off by default.",
+		warning = "This continuously submits your in-game location to your RuneManager instance while enabled",
+		section = liveMapSection,
+		position = 0
+	)
+	default boolean shareLocation()
 	{
 		return false;
 	}
