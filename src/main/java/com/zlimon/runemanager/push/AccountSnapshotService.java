@@ -48,6 +48,9 @@ public class AccountSnapshotService
 	private BankPushService bank;
 
 	@Inject
+	private GroupBankPushService groupBank;
+
+	@Inject
 	private LootingBagPushService lootingBag;
 
 	@Inject
@@ -92,6 +95,7 @@ public class AccountSnapshotService
 		inventory.pushCurrent();
 		equipment.pushCurrent();
 		bank.pushCurrent();
+		groupBank.pushCurrent();
 		lootingBag.pushCurrent();
 		quests.pushCurrent();
 		avatar.requestImmediateCapture();
