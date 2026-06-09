@@ -57,6 +57,9 @@ public class AccountSnapshotService
 	private QuestPushService quests;
 
 	@Inject
+	private DiaryPushService diaries;
+
+	@Inject
 	private AvatarPushService avatar;
 
 	private boolean pushedThisSession = false;
@@ -98,6 +101,7 @@ public class AccountSnapshotService
 		groupBank.pushCurrent();
 		lootingBag.pushCurrent();
 		quests.pushCurrent();
+		diaries.pushCurrent();
 		avatar.requestImmediateCapture();
 
 		// Stats (skills/bosses/clues) — ask the server to refresh from the OSRS
