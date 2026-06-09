@@ -6,6 +6,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.events.ItemContainerChanged;
@@ -19,6 +20,9 @@ public class InventoryPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private Client client;
+
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
@@ -28,6 +32,16 @@ public class InventoryPushService
 		}
 
 		api.put("/api/plugin/inventory", buildPayload(event.getItemContainer()));
+	}
+
+	/** Push the current inventory on demand (full-account snapshot). */
+	public void pushCurrent()
+	{
+		ItemContainer container = client.getItemContainer(InventoryID.INV);
+		if (container != null)
+		{
+			api.put("/api/plugin/inventory", buildPayload(container));
+		}
 	}
 
 	private Map<String, Object> buildPayload(ItemContainer container)

@@ -54,6 +54,19 @@ public class BankPushService
 	}
 
 	/**
+	 * Push the current bank on demand (full-account snapshot). Only available
+	 * once the bank has been opened this session.
+	 */
+	public void pushCurrent()
+	{
+		ItemContainer container = client.getItemContainer(InventoryID.BANK);
+		if (container != null)
+		{
+			api.put("/api/plugin/bank", buildPayload(container));
+		}
+	}
+
+	/**
 	 * The bank ItemContainer is flat; OSRS stores tab boundaries in varbits.
 	 * Layout: items in tabs 1-9 come first in the array (in tab order, sized
 	 * per the {@code BANK_TAB_*_COUNT} varbits), then the remainder belongs

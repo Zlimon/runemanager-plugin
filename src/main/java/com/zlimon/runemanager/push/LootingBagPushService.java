@@ -6,6 +6,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.events.ItemContainerChanged;
@@ -19,6 +20,9 @@ public class LootingBagPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private Client client;
+
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
@@ -28,6 +32,19 @@ public class LootingBagPushService
 		}
 
 		api.put("/api/plugin/looting-bag", buildPayload(event.getItemContainer()));
+	}
+
+	/**
+	 * Push the current looting bag on demand (full-account snapshot). Only
+	 * available once the bag has been opened this session.
+	 */
+	public void pushCurrent()
+	{
+		ItemContainer container = client.getItemContainer(InventoryID.LOOTING_BAG);
+		if (container != null)
+		{
+			api.put("/api/plugin/looting-bag", buildPayload(container));
+		}
 	}
 
 	private Map<String, Object> buildPayload(ItemContainer container)

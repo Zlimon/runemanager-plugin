@@ -7,6 +7,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.events.ItemContainerChanged;
@@ -23,6 +24,9 @@ public class EquipmentPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private Client client;
+
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
@@ -32,6 +36,16 @@ public class EquipmentPushService
 		}
 
 		api.put("/api/plugin/equipment", buildPayload(event.getItemContainer()));
+	}
+
+	/** Push the currently-worn equipment on demand (full-account snapshot). */
+	public void pushCurrent()
+	{
+		ItemContainer container = client.getItemContainer(InventoryID.WORN);
+		if (container != null)
+		{
+			api.put("/api/plugin/equipment", buildPayload(container));
+		}
 	}
 
 	/**

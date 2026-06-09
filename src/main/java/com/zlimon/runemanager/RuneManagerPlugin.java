@@ -1,6 +1,7 @@
 package com.zlimon.runemanager;
 
 import com.google.inject.Provides;
+import com.zlimon.runemanager.push.AccountSnapshotService;
 import com.zlimon.runemanager.push.AnnouncementService;
 import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
@@ -77,6 +78,9 @@ public class RuneManagerPlugin extends Plugin
 	private ClanPushService clanPushService;
 
 	@Inject
+	private AccountSnapshotService accountSnapshotService;
+
+	@Inject
 	private ResourcePackPushService resourcePackPushService;
 
 	@Inject
@@ -108,6 +112,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(vitalsPushService);
 		eventBus.register(statusPushService);
 		eventBus.register(clanPushService);
+		eventBus.register(accountSnapshotService);
 		eventBus.register(resourcePackPushService);
 		eventBus.register(avatarPushService);
 
@@ -138,6 +143,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(vitalsPushService);
 		eventBus.unregister(statusPushService);
 		eventBus.unregister(clanPushService);
+		eventBus.unregister(accountSnapshotService);
 		eventBus.unregister(resourcePackPushService);
 		eventBus.unregister(avatarPushService);
 
@@ -156,6 +162,13 @@ public class RuneManagerPlugin extends Plugin
 		if ("email".equals(event.getKey()) || "password".equals(event.getKey()) || "baseUrl".equals(event.getKey()))
 		{
 			attemptLoginIfNeeded();
+		}
+
+		// Token was just (re)issued — push the full account snapshot so a freshly
+		// linked account uploads everything without waiting for an in-game change.
+		if ("token".equals(event.getKey()) && event.getNewValue() != null && !event.getNewValue().isEmpty())
+		{
+			accountSnapshotService.requestResnapshot();
 		}
 
 		// One-shot manual avatar capture+upload. Auto-resets; the actual capture
