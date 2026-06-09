@@ -1,5 +1,8 @@
 package com.zlimon.runemanager;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +10,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.Varbits;
+import net.runelite.api.WorldType;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
@@ -24,6 +28,20 @@ import net.runelite.client.eventbus.Subscribe;
 @Singleton
 public class PluginAccountState
 {
+	/**
+	 * Worlds with a separate, fresh-start save (Leagues, Deadman, tournament,
+	 * fresh-start, beta, quest-speedrunning). Account data on these does not
+	 * belong to the player's main save, so we must not upload it.
+	 */
+	private static final Set<WorldType> NON_STANDARD_WORLDS = EnumSet.of(
+		WorldType.SEASONAL,
+		WorldType.DEADMAN,
+		WorldType.TOURNAMENT_WORLD,
+		WorldType.FRESH_START_WORLD,
+		WorldType.NOSAVE_MODE,
+		WorldType.BETA_WORLD,
+		WorldType.QUEST_SPEEDRUNNING);
+
 	@Inject
 	private Client client;
 
@@ -78,7 +96,18 @@ public class PluginAccountState
 			// inline here is safe — getLocalPlayer() is on the right thread.
 			refreshFromClient();
 		}
-		return accountHash != null && username != null;
+		return accountHash != null && username != null && isStandardWorld();
+	}
+
+	/**
+	 * Whether the current world saves to the player's main account. Leagues,
+	 * Deadman, etc. share the account hash but have a separate save, so uploading
+	 * their data would clobber the real account — we skip all pushes there.
+	 */
+	public boolean isStandardWorld()
+	{
+		EnumSet<WorldType> worldType = client.getWorldType();
+		return worldType == null || Collections.disjoint(worldType, NON_STANDARD_WORLDS);
 	}
 
 	public String accountHash()
