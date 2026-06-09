@@ -4,6 +4,7 @@ import com.google.inject.Provides;
 import com.zlimon.runemanager.push.AnnouncementService;
 import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
+import com.zlimon.runemanager.push.ClanPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
 import com.zlimon.runemanager.push.HeartbeatService;
 import com.zlimon.runemanager.push.InventoryPushService;
@@ -73,6 +74,9 @@ public class RuneManagerPlugin extends Plugin
 	private StatusPushService statusPushService;
 
 	@Inject
+	private ClanPushService clanPushService;
+
+	@Inject
 	private ResourcePackPushService resourcePackPushService;
 
 	@Inject
@@ -103,6 +107,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(positionPushService);
 		eventBus.register(vitalsPushService);
 		eventBus.register(statusPushService);
+		eventBus.register(clanPushService);
 		eventBus.register(resourcePackPushService);
 		eventBus.register(avatarPushService);
 
@@ -132,6 +137,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(positionPushService);
 		eventBus.unregister(vitalsPushService);
 		eventBus.unregister(statusPushService);
+		eventBus.unregister(clanPushService);
 		eventBus.unregister(resourcePackPushService);
 		eventBus.unregister(avatarPushService);
 
