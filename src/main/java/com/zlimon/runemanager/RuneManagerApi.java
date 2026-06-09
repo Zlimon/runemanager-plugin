@@ -130,6 +130,7 @@ public class RuneManagerApi
 			.header("Accept", "application/json")
 			.header("X-Account-Hash", accountState.accountHash())
 			.header("X-Account-Username", accountState.username())
+			.header("X-Account-Type", accountTypeHeader())
 			.get()
 			.build();
 
@@ -238,6 +239,7 @@ public class RuneManagerApi
 			.header("Accept", "application/json")
 			.header("X-Account-Hash", accountState.accountHash())
 			.header("X-Account-Username", accountState.username())
+			.header("X-Account-Type", accountTypeHeader())
 			.post(body)
 			.build();
 
@@ -270,9 +272,17 @@ public class RuneManagerApi
 		{
 			builder.header("X-Account-Hash", accountState.accountHash());
 			builder.header("X-Account-Username", accountState.username());
+			builder.header("X-Account-Type", accountTypeHeader());
 		}
 
 		httpClient.newCall(builder.build()).enqueue(responseCallback(path));
+	}
+
+	/** Account type for the X-Account-Type header, defaulting to normal if unknown. */
+	private String accountTypeHeader()
+	{
+		String type = accountState.accountType();
+		return type != null ? type : "normal";
 	}
 
 	/**

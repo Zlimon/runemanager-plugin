@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
+import net.runelite.api.Varbits;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
@@ -31,6 +32,7 @@ public class PluginAccountState
 
 	private volatile String accountHash;
 	private volatile String username;
+	private volatile String accountType;
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
@@ -89,6 +91,16 @@ public class PluginAccountState
 		return username;
 	}
 
+	/**
+	 * The in-game account type ("normal", "ironman", "group_ironman", …) read
+	 * from the ACCOUNT_TYPE varbit. The server uses it to set the account type
+	 * and, in GROUP mode, to confirm the account is a Group Ironman.
+	 */
+	public String accountType()
+	{
+		return accountType;
+	}
+
 	private void refreshFromClient()
 	{
 		long hash = client.getAccountHash();
@@ -105,12 +117,38 @@ public class PluginAccountState
 
 		this.accountHash = String.valueOf(hash);
 		this.username = player.getName();
-		log.debug("RuneManager: captured account hash={} username={}", accountHash, username);
+		this.accountType = mapAccountType(client.getVarbitValue(Varbits.ACCOUNT_TYPE));
+		log.debug("RuneManager: captured account hash={} username={} type={}", accountHash, username, accountType);
+	}
+
+	/**
+	 * Map the ACCOUNT_TYPE varbit to the website's account-type strings. The
+	 * three Group Ironman variants (group, hardcore group, unranked group) all
+	 * collapse to "group_ironman".
+	 */
+	private static String mapAccountType(int varbit)
+	{
+		switch (varbit)
+		{
+			case 1:
+				return "ironman";
+			case 2:
+				return "ultimate_ironman";
+			case 3:
+				return "hardcore_ironman";
+			case 4:
+			case 5:
+			case 6:
+				return "group_ironman";
+			default:
+				return "normal";
+		}
 	}
 
 	private void clear()
 	{
 		this.accountHash = null;
 		this.username = null;
+		this.accountType = null;
 	}
 }
