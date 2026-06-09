@@ -1,7 +1,9 @@
 package com.zlimon.runemanager.push;
 
 import com.zlimon.runemanager.PluginAccountState;
+import com.zlimon.runemanager.RuneManagerApi;
 import com.zlimon.runemanager.RuneManagerConfig;
+import java.util.HashMap;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,12 @@ public class AccountSnapshotService
 
 	@Inject
 	private RuneManagerConfig config;
+
+	@Inject
+	private RuneManagerApi api;
+
+	@Inject
+	private HeartbeatService heartbeat;
 
 	@Inject
 	private InventoryPushService inventory;
@@ -87,5 +95,11 @@ public class AccountSnapshotService
 		lootingBag.pushCurrent();
 		quests.pushCurrent();
 		avatar.requestImmediateCapture();
+
+		// Stats (skills/bosses/clues) — ask the server to refresh from the OSRS
+		// hiscores. Online status — stamp last_seen now rather than waiting for
+		// the 60s heartbeat schedule.
+		api.put("/api/plugin/hiscores", new HashMap<>());
+		heartbeat.ping();
 	}
 }
