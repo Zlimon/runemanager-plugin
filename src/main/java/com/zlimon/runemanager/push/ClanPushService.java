@@ -37,7 +37,6 @@ public class ClanPushService
 	@Inject
 	private Client client;
 
-	private String lastClanName;
 	private Integer lastRank;
 	private String lastTitle;
 	private boolean dirty = true;
@@ -72,15 +71,12 @@ public class ClanPushService
 			return;
 		}
 
-		String clanName = null;
 		Integer rank = null;
 		String title = null;
 
 		ClanChannel channel = client.getClanChannel();
 		if (channel != null)
 		{
-			clanName = channel.getName();
-
 			ClanChannelMember me = channel.findMember(local.getName());
 			if (me != null && me.getRank() != null)
 			{
@@ -99,21 +95,16 @@ public class ClanPushService
 			}
 		}
 
-		if (!dirty
-			&& Objects.equals(clanName, lastClanName)
-			&& Objects.equals(rank, lastRank)
-			&& Objects.equals(title, lastTitle))
+		if (!dirty && Objects.equals(rank, lastRank) && Objects.equals(title, lastTitle))
 		{
 			return;
 		}
 
 		Map<String, Object> body = new HashMap<>();
-		body.put("clan_name", clanName);
 		body.put("clan_rank", rank);
 		body.put("clan_title", title);
 		api.put("/api/plugin/clan", body);
 
-		lastClanName = clanName;
 		lastRank = rank;
 		lastTitle = title;
 		dirty = false;
@@ -121,7 +112,6 @@ public class ClanPushService
 
 	private void reset()
 	{
-		lastClanName = null;
 		lastRank = null;
 		lastTitle = null;
 		dirty = true;
