@@ -395,6 +395,14 @@ public class RuneManagerApi
 		{
 			return config.syncCollectionLog();
 		}
+		if (path.startsWith("/api/plugin/feed/screenshot"))
+		{
+			return config.captureScreenshots();
+		}
+		if (path.startsWith("/api/plugin/feed"))
+		{
+			return config.syncNotableEvents();
+		}
 		if (path.startsWith("/api/plugin/avatar"))
 		{
 			return config.syncAvatar();

@@ -1,6 +1,7 @@
 package com.zlimon.runemanager.push;
 
 import com.zlimon.runemanager.RuneManagerApi;
+import com.zlimon.runemanager.RuneManagerConfig;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,6 +49,12 @@ public class LootPushService
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private RuneManagerConfig config;
+
+	@Inject
+	private ScreenshotPushService screenshot;
+
 	@Subscribe
 	public void onLootReceived(LootReceived event)
 	{
@@ -92,6 +99,12 @@ public class LootPushService
 		body.put("loot", List.of(entry));
 
 		api.post("/api/plugin/loot", body);
+
+		// Screenshot only valuable drops, so we don't capture on every kill.
+		if (totalValue >= config.screenshotLootValue())
+		{
+			screenshot.capture("loot_drop");
+		}
 	}
 
 	/**

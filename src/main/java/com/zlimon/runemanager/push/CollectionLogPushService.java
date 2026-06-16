@@ -39,6 +39,9 @@ public class CollectionLogPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private ScreenshotPushService screenshot;
+
 	private boolean notificationStarted = false;
 
 	@Subscribe
@@ -117,5 +120,6 @@ public class CollectionLogPushService
 
 		log.debug("RuneManager: collection log slot unlocked: {}", item);
 		api.post("/api/plugin/collection-log/unlock", body);
+		screenshot.capture("collection_log");
 	}
 }

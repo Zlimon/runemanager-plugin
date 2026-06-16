@@ -32,18 +32,50 @@ public interface RuneManagerConfig extends Config
 	String dataSyncSection = "dataSync";
 
 	@ConfigSection(
+		name = "Screenshots",
+		description = "Attach a screenshot of the moment to your live-feed events",
+		position = 3
+	)
+	String screenshotsSection = "screenshots";
+
+	@ConfigSection(
 		name = "Theme sync",
 		description = "Mirror your in-game resource pack to your RuneManager website",
-		position = 3
+		position = 4
 	)
 	String themeSyncSection = "themeSync";
 
 	@ConfigSection(
 		name = "Live Map",
 		description = "Share your in-game location on your RuneManager website's Live Map",
-		position = 4
+		position = 5
 	)
 	String liveMapSection = "liveMap";
+
+	@ConfigItem(
+		keyName = "captureScreenshots",
+		name = "Attach screenshots to feed",
+		description = "Capture a screenshot when you get a notable drop, combat achievement, or collection log slot, and attach it to that event on your RuneManager live feed.",
+		warning = "This uploads in-game screenshots to your RuneManager website, where they appear on the public feed.",
+		section = screenshotsSection,
+		position = 0
+	)
+	default boolean captureScreenshots()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "screenshotLootValue",
+		name = "Screenshot loot value (gp)",
+		description = "Only screenshot loot drops worth at least this much. Combat achievements and collection log slots are always screenshotted when enabled.",
+		section = screenshotsSection,
+		position = 1
+	)
+	default int screenshotLootValue()
+	{
+		return 1_000_000;
+	}
 
 	@ConfigItem(
 		keyName = "baseUrl",
@@ -207,11 +239,23 @@ public interface RuneManagerConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "syncNotableEvents",
+		name = "Notable events",
+		description = "Post pets, deaths, and reward-chest openings to the live feed",
+		section = dataSyncSection,
+		position = 9
+	)
+	default boolean syncNotableEvents()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "syncVitals",
 		name = "Vitals",
 		description = "Upload live HP/prayer/run/special values for the status orbs",
 		section = dataSyncSection,
-		position = 9
+		position = 10
 	)
 	default boolean syncVitals()
 	{
@@ -223,7 +267,7 @@ public interface RuneManagerConfig extends Config
 		name = "Activity",
 		description = "Upload your current in-game activity/area",
 		section = dataSyncSection,
-		position = 10
+		position = 11
 	)
 	default boolean syncActivity()
 	{
@@ -235,7 +279,7 @@ public interface RuneManagerConfig extends Config
 		name = "Avatar",
 		description = "Upload a snapshot of your character model (on login and when your equipment changes)",
 		section = dataSyncSection,
-		position = 11
+		position = 12
 	)
 	default boolean syncAvatar()
 	{

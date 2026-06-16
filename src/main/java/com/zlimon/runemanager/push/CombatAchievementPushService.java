@@ -54,6 +54,9 @@ public class CombatAchievementPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private ScreenshotPushService screenshot;
+
 	private boolean notificationStarted = false;
 
 	@Subscribe
@@ -156,6 +159,7 @@ public class CombatAchievementPushService
 
 		log.debug("RuneManager: combat task unlocked: {} ({})", task, tier);
 		api.post("/api/plugin/combat-achievements/unlock", body);
+		screenshot.capture("combat_achievement");
 	}
 
 	private Map<String, Object> buildPayload()
