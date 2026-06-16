@@ -25,16 +25,23 @@ public interface RuneManagerConfig extends Config
 	String credentialsSection = "credentials";
 
 	@ConfigSection(
+		name = "Data sync",
+		description = "Choose which in-game data is uploaded to your RuneManager website",
+		position = 2
+	)
+	String dataSyncSection = "dataSync";
+
+	@ConfigSection(
 		name = "Theme sync",
 		description = "Mirror your in-game resource pack to your RuneManager website",
-		position = 2
+		position = 3
 	)
 	String themeSyncSection = "themeSync";
 
 	@ConfigSection(
 		name = "Live Map",
 		description = "Share your in-game location on your RuneManager website's Live Map",
-		position = 3
+		position = 4
 	)
 	String liveMapSection = "liveMap";
 
@@ -86,6 +93,143 @@ public interface RuneManagerConfig extends Config
 		return "";
 	}
 
+	// --- Data sync toggles ----------------------------------------------------
+	// Each gates the matching plugin → backend push (see RuneManagerApi). All
+	// default on, so a fresh install syncs everything; flip one off to keep that
+	// data off your RuneManager website.
+
+	@ConfigItem(
+		keyName = "syncInventory",
+		name = "Inventory",
+		description = "Upload your inventory contents",
+		section = dataSyncSection,
+		position = 0
+	)
+	default boolean syncInventory()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncBank",
+		name = "Bank",
+		description = "Upload your bank contents (and the shared group bank in Group Ironman)",
+		section = dataSyncSection,
+		position = 1
+	)
+	default boolean syncBank()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncEquipment",
+		name = "Equipment",
+		description = "Upload your worn equipment",
+		section = dataSyncSection,
+		position = 2
+	)
+	default boolean syncEquipment()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncLootingBag",
+		name = "Looting bag",
+		description = "Upload your looting bag contents",
+		section = dataSyncSection,
+		position = 3
+	)
+	default boolean syncLootingBag()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncLoot",
+		name = "Loot",
+		description = "Upload loot drops (NPC kills, chests, etc.) to your loot log",
+		section = dataSyncSection,
+		position = 4
+	)
+	default boolean syncLoot()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncQuests",
+		name = "Quests",
+		description = "Upload your quest completion state",
+		section = dataSyncSection,
+		position = 5
+	)
+	default boolean syncQuests()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncDiaries",
+		name = "Achievement diaries",
+		description = "Upload your Achievement Diary completion",
+		section = dataSyncSection,
+		position = 6
+	)
+	default boolean syncDiaries()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncCombatAchievements",
+		name = "Combat achievements",
+		description = "Upload your Combat Achievement points/tiers and post task unlocks to the live feed",
+		section = dataSyncSection,
+		position = 7
+	)
+	default boolean syncCombatAchievements()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncVitals",
+		name = "Vitals",
+		description = "Upload live HP/prayer/run/special values for the status orbs",
+		section = dataSyncSection,
+		position = 8
+	)
+	default boolean syncVitals()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncActivity",
+		name = "Activity",
+		description = "Upload your current in-game activity/area",
+		section = dataSyncSection,
+		position = 9
+	)
+	default boolean syncActivity()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncAvatar",
+		name = "Avatar",
+		description = "Upload a snapshot of your character model (on login and when your equipment changes)",
+		section = dataSyncSection,
+		position = 10
+	)
+	default boolean syncAvatar()
+	{
+		return true;
+	}
+
 	@ConfigItem(
 		keyName = "applyThemeToWebsite",
 		name = "Apply RuneLite theme to website",
@@ -108,23 +252,6 @@ public interface RuneManagerConfig extends Config
 		position = 0
 	)
 	default boolean shareLocation()
-	{
-		return false;
-	}
-
-	/**
-	 * One-shot toggle: captures your current player model and uploads it as the
-	 * RuneManager account avatar. The avatar also re-syncs automatically when you
-	 * change equipment; this button forces a capture now. Auto-resets to false.
-	 */
-	@ConfigItem(
-		keyName = "uploadAvatar",
-		name = "Sync avatar now",
-		description = "Capture your current character model and upload it as your RuneManager avatar (also happens automatically on equipment change)",
-		section = connectionSection,
-		position = 60
-	)
-	default boolean uploadAvatar()
 	{
 		return false;
 	}

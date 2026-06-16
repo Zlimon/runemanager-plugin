@@ -6,6 +6,7 @@ import com.zlimon.runemanager.push.AnnouncementService;
 import com.zlimon.runemanager.push.AvatarPushService;
 import com.zlimon.runemanager.push.BankPushService;
 import com.zlimon.runemanager.push.ClanPushService;
+import com.zlimon.runemanager.push.CombatAchievementPushService;
 import com.zlimon.runemanager.push.DiaryPushService;
 import com.zlimon.runemanager.push.EquipmentPushService;
 import com.zlimon.runemanager.push.GroupBankPushService;
@@ -68,6 +69,9 @@ public class RuneManagerPlugin extends Plugin
 	private DiaryPushService diaryPushService;
 
 	@Inject
+	private CombatAchievementPushService combatAchievementPushService;
+
+	@Inject
 	private LootingBagPushService lootingBagPushService;
 
 	@Inject
@@ -100,9 +104,6 @@ public class RuneManagerPlugin extends Plugin
 	@Inject
 	private AnnouncementService announcementService;
 
-	@Inject
-	private ConfigManager configManager;
-
 	@Override
 	protected void startUp()
 	{
@@ -116,6 +117,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.register(equipmentPushService);
 		eventBus.register(questPushService);
 		eventBus.register(diaryPushService);
+		eventBus.register(combatAchievementPushService);
 		eventBus.register(lootingBagPushService);
 		eventBus.register(lootPushService);
 		eventBus.register(positionPushService);
@@ -149,6 +151,7 @@ public class RuneManagerPlugin extends Plugin
 		eventBus.unregister(equipmentPushService);
 		eventBus.unregister(questPushService);
 		eventBus.unregister(diaryPushService);
+		eventBus.unregister(combatAchievementPushService);
 		eventBus.unregister(lootingBagPushService);
 		eventBus.unregister(lootPushService);
 		eventBus.unregister(positionPushService);
@@ -181,14 +184,6 @@ public class RuneManagerPlugin extends Plugin
 		if ("token".equals(event.getKey()) && event.getNewValue() != null && !event.getNewValue().isEmpty())
 		{
 			accountSnapshotService.requestResnapshot();
-		}
-
-		// One-shot manual avatar capture+upload. Auto-resets; the actual capture
-		// happens on the next idle tick (see AvatarPushService).
-		if ("uploadAvatar".equals(event.getKey()) && "true".equals(event.getNewValue()))
-		{
-			avatarPushService.requestImmediateCapture();
-			configManager.setConfiguration(RuneManagerConfig.GROUP, "uploadAvatar", false);
 		}
 	}
 

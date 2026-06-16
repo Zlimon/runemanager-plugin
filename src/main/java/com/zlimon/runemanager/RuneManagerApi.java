@@ -62,6 +62,12 @@ public class RuneManagerApi
 	 */
 	public void put(String path, Object body)
 	{
+		if (!syncEnabled(path))
+		{
+			log.debug("RuneManager: skipping {} — disabled in Data sync settings", path);
+			return;
+		}
+
 		if (!accountState.isReady())
 		{
 			log.debug("RuneManager: skipping {} — account state not ready", path);
@@ -78,6 +84,12 @@ public class RuneManagerApi
 	 */
 	public void post(String path, Object body)
 	{
+		if (!syncEnabled(path))
+		{
+			log.debug("RuneManager: skipping {} — disabled in Data sync settings", path);
+			return;
+		}
+
 		if (!accountState.isReady())
 		{
 			log.debug("RuneManager: skipping {} — account state not ready", path);
@@ -196,6 +208,12 @@ public class RuneManagerApi
 	 */
 	public void postParts(String path, List<Part> parts)
 	{
+		if (!syncEnabled(path))
+		{
+			log.debug("RuneManager: skipping {} — disabled in Data sync settings", path);
+			return;
+		}
+
 		if (parts.isEmpty())
 		{
 			log.warn("RuneManager: skipping {} — no parts to upload", path);
@@ -326,6 +344,67 @@ public class RuneManagerApi
 				}
 			}
 		};
+	}
+
+	/**
+	 * Central gate for the "Data sync" toggles: maps a push endpoint to its
+	 * config switch so a single check covers every push (snapshot + event-driven)
+	 * without each service repeating the guard. Unmapped paths (heartbeat,
+	 * hiscores, clan, position, resource-pack) are always allowed — those have
+	 * their own gating or are core presence.
+	 */
+	private boolean syncEnabled(String path)
+	{
+		if (path.startsWith("/api/plugin/inventory"))
+		{
+			return config.syncInventory();
+		}
+		if (path.startsWith("/api/plugin/group-bank"))
+		{
+			return config.syncBank();
+		}
+		if (path.startsWith("/api/plugin/bank"))
+		{
+			return config.syncBank();
+		}
+		if (path.startsWith("/api/plugin/equipment"))
+		{
+			return config.syncEquipment();
+		}
+		if (path.startsWith("/api/plugin/looting-bag"))
+		{
+			return config.syncLootingBag();
+		}
+		if (path.startsWith("/api/plugin/loot"))
+		{
+			return config.syncLoot();
+		}
+		if (path.startsWith("/api/plugin/quests"))
+		{
+			return config.syncQuests();
+		}
+		if (path.startsWith("/api/plugin/diaries"))
+		{
+			return config.syncDiaries();
+		}
+		if (path.startsWith("/api/plugin/combat-achievements"))
+		{
+			return config.syncCombatAchievements();
+		}
+		if (path.startsWith("/api/plugin/avatar"))
+		{
+			return config.syncAvatar();
+		}
+		if (path.startsWith("/api/plugin/vitals"))
+		{
+			return config.syncVitals();
+		}
+		if (path.startsWith("/api/plugin/status"))
+		{
+			return config.syncActivity();
+		}
+
+		return true;
 	}
 
 	private static String normaliseBaseUrl(String url)

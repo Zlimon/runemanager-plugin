@@ -60,6 +60,9 @@ public class AccountSnapshotService
 	private DiaryPushService diaries;
 
 	@Inject
+	private CombatAchievementPushService combatAchievements;
+
+	@Inject
 	private AvatarPushService avatar;
 
 	private boolean pushedThisSession = false;
@@ -102,7 +105,8 @@ public class AccountSnapshotService
 		lootingBag.pushCurrent();
 		quests.pushCurrent();
 		diaries.pushCurrent();
-		avatar.requestImmediateCapture();
+		combatAchievements.pushCurrent();
+		avatar.requestCapture();
 
 		// Stats (skills/bosses/clues) — ask the server to refresh from the OSRS
 		// hiscores. Online status — stamp last_seen now rather than waiting for
