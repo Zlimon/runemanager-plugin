@@ -241,7 +241,7 @@ public interface RuneManagerConfig extends Config
 	@ConfigItem(
 		keyName = "syncNotableEvents",
 		name = "Notable events",
-		description = "Post pets, deaths, and reward-chest openings to the live feed",
+		description = "Post level-ups, pets, deaths, and reward-chest openings to the live feed",
 		section = dataSyncSection,
 		position = 9
 	)

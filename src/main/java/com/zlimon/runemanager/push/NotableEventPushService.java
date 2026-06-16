@@ -5,6 +5,8 @@ import com.zlimon.runemanager.RuneManagerConfig;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,11 @@ public class NotableEventPushService
 		"You feel something weird sneaking into your backpack",
 		"You have a funny feeling like you would have been followed");
 
+	/** Level-up chat line, matching the official Screenshot plugin's pattern. */
+	private static final Pattern LEVEL_UP_PATTERN = Pattern.compile(
+		"Congratulations, you've (?:just advanced your (?<skill>[a-zA-Z]+) level\\. You are now level (?<level>\\d+)"
+			+ "|reached the highest possible (?<skill99>[a-zA-Z]+) level of (?<level99>\\d+))\\.");
+
 	/** Reward interface group id → human source name. */
 	private static final Map<Integer, String> REWARD_SOURCES = buildRewardSources();
 
@@ -60,6 +67,15 @@ public class NotableEventPushService
 		if (PET_MESSAGES.stream().anyMatch(message::contains))
 		{
 			push("pet", null);
+			return;
+		}
+
+		Matcher levelUp = LEVEL_UP_PATTERN.matcher(message);
+		if (levelUp.matches())
+		{
+			String skill = levelUp.group("skill") != null ? levelUp.group("skill") : levelUp.group("skill99");
+			String level = levelUp.group("level") != null ? levelUp.group("level") : levelUp.group("level99");
+			pushLevelUp(skill.toLowerCase(), Integer.parseInt(level));
 		}
 	}
 
@@ -99,6 +115,23 @@ public class NotableEventPushService
 		log.debug("RuneManager: notable event: {} ({})", type, source);
 		api.post("/api/plugin/feed", body);
 		screenshot.capture(type);
+	}
+
+	private void pushLevelUp(String skill, int level)
+	{
+		if (!config.syncNotableEvents())
+		{
+			return;
+		}
+
+		Map<String, Object> body = new HashMap<>();
+		body.put("type", "level_up");
+		body.put("skill", skill);
+		body.put("level", level);
+
+		log.debug("RuneManager: level up: {} {}", skill, level);
+		api.post("/api/plugin/feed", body);
+		screenshot.capture("level_up");
 	}
 
 	private static Map<Integer, String> buildRewardSources()
