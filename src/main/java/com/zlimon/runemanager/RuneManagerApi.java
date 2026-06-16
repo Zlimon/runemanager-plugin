@@ -391,6 +391,10 @@ public class RuneManagerApi
 		{
 			return config.syncCombatAchievements();
 		}
+		if (path.startsWith("/api/plugin/collection-log"))
+		{
+			return config.syncCollectionLog();
+		}
 		if (path.startsWith("/api/plugin/avatar"))
 		{
 			return config.syncAvatar();

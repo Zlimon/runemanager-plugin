@@ -195,11 +195,23 @@ public interface RuneManagerConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "syncCollectionLog",
+		name = "Collection log",
+		description = "Post collection-log slot unlocks to the live feed",
+		section = dataSyncSection,
+		position = 8
+	)
+	default boolean syncCollectionLog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "syncVitals",
 		name = "Vitals",
 		description = "Upload live HP/prayer/run/special values for the status orbs",
 		section = dataSyncSection,
-		position = 8
+		position = 9
 	)
 	default boolean syncVitals()
 	{
@@ -211,7 +223,7 @@ public interface RuneManagerConfig extends Config
 		name = "Activity",
 		description = "Upload your current in-game activity/area",
 		section = dataSyncSection,
-		position = 9
+		position = 10
 	)
 	default boolean syncActivity()
 	{
@@ -223,7 +235,7 @@ public interface RuneManagerConfig extends Config
 		name = "Avatar",
 		description = "Upload a snapshot of your character model (on login and when your equipment changes)",
 		section = dataSyncSection,
-		position = 10
+		position = 11
 	)
 	default boolean syncAvatar()
 	{
