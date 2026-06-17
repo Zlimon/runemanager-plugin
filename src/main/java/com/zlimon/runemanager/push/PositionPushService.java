@@ -58,6 +58,14 @@ public class PositionPushService
 			return;
 		}
 
+		// In a player instance the world coordinates are a copy in dead space that
+		// renders white on the map — skip the update so the marker keeps the last
+		// real position (where they were before entering the instance).
+		if (client.isInInstancedRegion())
+		{
+			return;
+		}
+
 		WorldPoint position = local.getWorldLocation();
 		if (position == null)
 		{
