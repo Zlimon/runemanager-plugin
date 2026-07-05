@@ -66,18 +66,6 @@ public interface RuneManagerConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "screenshotLootValue",
-		name = "Screenshot loot value (gp)",
-		description = "Only screenshot loot drops worth at least this much. Combat achievements and collection log slots are always screenshotted when enabled.",
-		section = screenshotsSection,
-		position = 1
-	)
-	default int screenshotLootValue()
-	{
-		return 1_000_000;
-	}
-
-	@ConfigItem(
 		keyName = "baseUrl",
 		name = "Base URL",
 		description = "The URL of your RuneManager instance (no trailing slash)",
@@ -191,11 +179,23 @@ public interface RuneManagerConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "feedLootValue",
+		name = "Feed loot value (gp)",
+		description = "Only post loot drops worth at least this much to the activity feed. All drops still go to your loot log.",
+		section = dataSyncSection,
+		position = 5
+	)
+	default int feedLootValue()
+	{
+		return 0;
+	}
+
+	@ConfigItem(
 		keyName = "syncQuests",
 		name = "Quests",
 		description = "Upload your quest completion state",
 		section = dataSyncSection,
-		position = 5
+		position = 6
 	)
 	default boolean syncQuests()
 	{
@@ -207,7 +207,7 @@ public interface RuneManagerConfig extends Config
 		name = "Achievement diaries",
 		description = "Upload your Achievement Diary completion",
 		section = dataSyncSection,
-		position = 6
+		position = 7
 	)
 	default boolean syncDiaries()
 	{
@@ -219,7 +219,7 @@ public interface RuneManagerConfig extends Config
 		name = "Combat achievements",
 		description = "Upload your Combat Achievement points/tiers and post task unlocks to the live feed",
 		section = dataSyncSection,
-		position = 7
+		position = 8
 	)
 	default boolean syncCombatAchievements()
 	{
@@ -231,7 +231,7 @@ public interface RuneManagerConfig extends Config
 		name = "Collection log",
 		description = "Post collection-log slot unlocks to the live feed",
 		section = dataSyncSection,
-		position = 8
+		position = 9
 	)
 	default boolean syncCollectionLog()
 	{
@@ -243,7 +243,7 @@ public interface RuneManagerConfig extends Config
 		name = "Notable events",
 		description = "Post level-ups, pets, deaths, and reward-chest openings to the live feed",
 		section = dataSyncSection,
-		position = 9
+		position = 10
 	)
 	default boolean syncNotableEvents()
 	{
@@ -255,7 +255,7 @@ public interface RuneManagerConfig extends Config
 		name = "Vitals",
 		description = "Upload live HP/prayer/run/special values for the status orbs",
 		section = dataSyncSection,
-		position = 10
+		position = 11
 	)
 	default boolean syncVitals()
 	{
@@ -267,7 +267,7 @@ public interface RuneManagerConfig extends Config
 		name = "Activity",
 		description = "Upload your current in-game activity/area",
 		section = dataSyncSection,
-		position = 11
+		position = 12
 	)
 	default boolean syncActivity()
 	{
@@ -279,7 +279,7 @@ public interface RuneManagerConfig extends Config
 		name = "Avatar",
 		description = "Upload a snapshot of your character model (on login and when your equipment changes)",
 		section = dataSyncSection,
-		position = 12
+		position = 13
 	)
 	default boolean syncAvatar()
 	{

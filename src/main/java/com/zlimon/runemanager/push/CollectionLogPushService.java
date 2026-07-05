@@ -18,10 +18,12 @@ import net.runelite.client.util.Text;
 
 /**
  * SPEC §8.1 — posts collection-log slot unlocks to the live feed. Mirrors the
- * official Screenshot plugin: when the collection-log popup is disabled
- * (OPTION_COLLECTION_NEW_ITEM == 1) the unlock arrives as a chat message; when
- * enabled (== 0, the default) it arrives as a notification popup. Either way we
- * extract the item name and push it (the full log is pulled from TempleOSRS).
+ * official Screenshot plugin: OPTION_COLLECTION_NEW_ITEM is 0 = no
+ * notification, 1 = chat only, 2 = popup only, 3 = chat + popup. The chat path
+ * fires only in chat-only mode (1); the popup path fires whenever the popup
+ * actually appears (2 and 3) with no varbit check, so the two paths never
+ * double-post. Either way we extract the item name and push it (the full log
+ * is pulled from TempleOSRS). At 0 the game shows nothing to parse.
  */
 @Slf4j
 @Singleton
@@ -52,8 +54,7 @@ public class CollectionLogPushService
 			return;
 		}
 
-		// Chat carries the unlock only when the on-screen popup is disabled;
-		// the popup path handles the other case (avoids double-posting).
+		// Chat-only mode (1); in chat+popup mode (3) the popup path posts instead.
 		if (client.getVarbitValue(VarbitID.OPTION_COLLECTION_NEW_ITEM) != 1)
 		{
 			return;
@@ -86,11 +87,6 @@ public class CollectionLogPushService
 
 	private void handleNotification()
 	{
-		if (client.getVarbitValue(VarbitID.OPTION_COLLECTION_NEW_ITEM) != 0)
-		{
-			return;
-		}
-
 		String title = client.getVarcStrValue(VarClientID.NOTIFICATION_TITLE);
 		if (title == null || !title.equalsIgnoreCase(POPUP_TITLE))
 		{

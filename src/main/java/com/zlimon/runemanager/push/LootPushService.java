@@ -88,20 +88,24 @@ public class LootPushService
 			return;
 		}
 
+		// The loot log gets every drop; the activity feed (and its optional
+		// screenshot) only drops worth posting.
+		boolean feedWorthy = totalValue >= config.feedLootValue();
+
 		Map<String, Object> entry = new HashMap<>();
 		entry.put("source", event.getName());
 		entry.put("type", event.getType() != null ? event.getType().name() : null);
 		entry.put("items", items);
 		entry.put("total_value", totalValue);
 		entry.put("killed_at", Instant.now().toString());
+		entry.put("feed", feedWorthy);
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("loot", List.of(entry));
 
 		api.post("/api/plugin/loot", body);
 
-		// Screenshot only valuable drops, so we don't capture on every kill.
-		if (totalValue >= config.screenshotLootValue())
+		if (feedWorthy)
 		{
 			screenshot.capture("loot_drop");
 		}
