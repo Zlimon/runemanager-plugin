@@ -29,6 +29,9 @@ public class QuestPushService
 	@Inject
 	private RuneManagerApi api;
 
+	@Inject
+	private PlayerLocation playerLocation;
+
 	/** Push the full quest snapshot on demand (full-account snapshot). */
 	public void pushCurrent()
 	{
@@ -59,6 +62,9 @@ public class QuestPushService
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("quests", quests);
+		// Where the snapshot was taken — the server attaches it to any
+		// quest-completion feed events it derives from the diff.
+		body.put("position", playerLocation.current());
 		return body;
 	}
 }

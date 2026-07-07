@@ -44,6 +44,9 @@ public class LootPushService
 	private RuneManagerApi api;
 
 	@Inject
+	private PlayerLocation playerLocation;
+
+	@Inject
 	private ItemManager itemManager;
 
 	@Inject
@@ -99,6 +102,7 @@ public class LootPushService
 		entry.put("total_value", totalValue);
 		entry.put("killed_at", Instant.now().toString());
 		entry.put("feed", feedWorthy);
+		entry.put("position", playerLocation.current());
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("loot", List.of(entry));

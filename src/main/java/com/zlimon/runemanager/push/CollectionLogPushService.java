@@ -42,6 +42,9 @@ public class CollectionLogPushService
 	private RuneManagerApi api;
 
 	@Inject
+	private PlayerLocation playerLocation;
+
+	@Inject
 	private ScreenshotPushService screenshot;
 
 	private boolean notificationStarted = false;
@@ -113,6 +116,7 @@ public class CollectionLogPushService
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("item", item);
+		body.put("position", playerLocation.current());
 
 		log.debug("RuneManager: collection log slot unlocked: {}", item);
 		api.post("/api/plugin/collection-log/unlock", body);

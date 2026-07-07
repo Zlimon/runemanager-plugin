@@ -55,6 +55,9 @@ public class CombatAchievementPushService
 	private RuneManagerApi api;
 
 	@Inject
+	private PlayerLocation playerLocation;
+
+	@Inject
 	private ScreenshotPushService screenshot;
 
 	private boolean notificationStarted = false;
@@ -152,6 +155,7 @@ public class CombatAchievementPushService
 	{
 		Map<String, Object> body = new HashMap<>();
 		body.put("task", task);
+		body.put("position", playerLocation.current());
 		if (tier != null && !tier.isEmpty())
 		{
 			body.put("tier", tier.toLowerCase());

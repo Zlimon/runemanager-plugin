@@ -50,6 +50,9 @@ public class NotableEventPushService
 	private RuneManagerApi api;
 
 	@Inject
+	private PlayerLocation playerLocation;
+
+	@Inject
 	private RuneManagerConfig config;
 
 	@Inject
@@ -107,6 +110,7 @@ public class NotableEventPushService
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("type", type);
+		body.put("position", playerLocation.current());
 		if (source != null)
 		{
 			body.put("source", source);
@@ -126,6 +130,7 @@ public class NotableEventPushService
 
 		Map<String, Object> body = new HashMap<>();
 		body.put("type", "level_up");
+		body.put("position", playerLocation.current());
 		body.put("skill", skill);
 		body.put("level", level);
 
