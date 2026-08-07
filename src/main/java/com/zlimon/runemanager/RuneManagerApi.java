@@ -330,7 +330,8 @@ public class RuneManagerApi
 
 					if (r.code() == 401)
 					{
-						// Token was rejected — clear it so the plugin will re-log in on next config edit / startup.
+						// Token was rejected — clear it, which triggers an automatic re-login (see
+						// RuneManagerPlugin#onConfigChanged) as long as credentials are still saved.
 						log.warn("RuneManager: {} rejected our token (401); clearing it", path);
 						configManager.setConfiguration(RuneManagerConfig.GROUP, "token", "");
 						return;

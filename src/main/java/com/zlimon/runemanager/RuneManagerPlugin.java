@@ -191,6 +191,14 @@ public class RuneManagerPlugin extends Plugin
 			attemptLoginIfNeeded();
 		}
 
+		// Token was rejected by the backend and cleared (see RuneManagerApi) — if
+		// credentials are still saved, re-log in immediately instead of leaving the
+		// user stuck with no token until they touch the config themselves.
+		if ("token".equals(event.getKey()) && (event.getNewValue() == null || event.getNewValue().isEmpty()))
+		{
+			attemptLoginIfNeeded();
+		}
+
 		// Token was just (re)issued — push the full account snapshot so a freshly
 		// linked account uploads everything without waiting for an in-game change.
 		if ("token".equals(event.getKey()) && event.getNewValue() != null && !event.getNewValue().isEmpty())
